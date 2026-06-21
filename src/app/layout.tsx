@@ -14,17 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SOARICH AI Investor",
+  title: "SOARICH Investor",
+  applicationName: "SOARICH Investor",
   description: "AI 驅動的專業股票分析平台 — 台股與美股智能投資助手",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SOARICH AI",
+    title: "SOARICH Investor",
   },
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+    shortcut: [{ url: "/logo.png", type: "image/png" }],
   },
 };
 
@@ -34,7 +36,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#080908",
+  themeColor: "#050505",
 };
 
 export default function RootLayout({

@@ -10,6 +10,7 @@ import { AssetHero } from "@/components/home/asset-hero";
 import { SearchBar } from "@/components/home/search-bar";
 import { RecommendationCarousel } from "@/components/home/recommendation-carousel";
 import { WatchlistCards } from "@/components/home/watchlist-cards";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { SegmentControl } from "@/components/ui/segment-control";
 
 export default function HomePage() {
@@ -20,9 +21,7 @@ export default function HomePage() {
   return (
     <div className="space-y-7">
       <header className="pt-1">
-        <h1 className="text-lg font-semibold tracking-tight text-text-primary">
-          SOARICH AI Investor
-        </h1>
+        <BrandLogo />
       </header>
 
       <AssetHero />
