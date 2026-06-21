@@ -10,7 +10,7 @@ import { AssetHero } from "@/components/home/asset-hero";
 import { SearchBar } from "@/components/home/search-bar";
 import { RecommendationCarousel } from "@/components/home/recommendation-carousel";
 import { WatchlistCards } from "@/components/home/watchlist-cards";
-import { BrandLogo } from "@/components/layout/brand-logo";
+import { AppHeader } from "@/components/layout/app-header";
 import { SegmentControl } from "@/components/ui/segment-control";
 
 export default function HomePage() {
@@ -20,9 +20,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-7">
-      <header className="pt-1">
-        <BrandLogo />
-      </header>
+      <AppHeader />
 
       <AssetHero />
 

@@ -13,33 +13,53 @@ const navItems = [
   { href: "/profile", label: "我的", icon: User },
 ];
 
-export function BottomNav() {
+function NavLinks() {
   const pathname = usePathname();
 
   return (
-    <nav className="bottom-nav">
-      <div className="bottom-nav__inner">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
+    <>
+      {navItems.map((item) => {
+        const isActive =
+          item.href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(item.href);
+        const Icon = item.icon;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "bottom-nav__item",
-                isActive ? "text-brand" : "text-text-secondary"
-              )}
-            >
-              <Icon className="bottom-nav__icon" strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className="bottom-nav__label">{item.label}</span>
-            </Link>
-          );
-        })}
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "bottom-nav-item",
+              isActive ? "text-brand" : "text-text-secondary"
+            )}
+          >
+            <Icon className="bottom-nav-icon" strokeWidth={isActive ? 2.2 : 1.8} />
+            <span className="bottom-nav-label">{item.label}</span>
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+/** Fixed to viewport — mobile真機 */
+export function BottomNavViewport() {
+  return (
+    <nav className="bottom-nav bottom-nav--viewport" aria-label="主導航">
+      <div className="bottom-nav__inner">
+        <NavLinks />
+      </div>
+    </nav>
+  );
+}
+
+/** Absolute inside phone frame — desktop模擬器 */
+export function BottomNavFrame() {
+  return (
+    <nav className="bottom-nav bottom-nav--frame" aria-label="主導航">
+      <div className="bottom-nav__inner">
+        <NavLinks />
       </div>
     </nav>
   );

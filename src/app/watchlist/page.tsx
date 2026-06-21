@@ -45,8 +45,8 @@ export default function WatchlistPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between pt-1">
+    <div className="space-y-6 page-safe-top">
+      <header className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-text-primary">自選股</h1>
         <button
           type="button"

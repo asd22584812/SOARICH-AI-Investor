@@ -33,7 +33,7 @@ function AnalysisContent() {
   if (!query && !analysis) {
     return (
       <div className="space-y-6">
-        <header className="pt-1">
+        <header className="page-safe-top">
           <h1 className="text-lg font-semibold text-text-primary">個股分析</h1>
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
@@ -50,7 +50,7 @@ function AnalysisContent() {
   if (query && !analysis) {
     return (
       <div className="space-y-6">
-        <header className="pt-1">
+        <header className="page-safe-top">
           <h1 className="text-lg font-semibold text-text-primary">個股分析</h1>
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
@@ -66,7 +66,7 @@ function AnalysisContent() {
   const seed = analysis.symbol.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-5 pb-6 page-safe-top">
       <StockPriceHeader stock={analysis} />
 
       <StockChart

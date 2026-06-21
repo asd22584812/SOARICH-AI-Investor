@@ -17,7 +17,7 @@ const menuItems = [
 
 export default function ProfilePage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-safe-top">
       <header>
         <h1 className="text-lg font-semibold text-text-primary">我的</h1>
         <p className="mt-1 text-sm text-text-secondary">個人設定</p>
