@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Market } from "@/types/stock";
 import { resolveStockQuery, searchStocks } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
+import { StockSearchField } from "./stock-search-field";
 
 interface SearchBarProps {
   market?: Market;
@@ -45,21 +45,17 @@ export function SearchBar({
 
   return (
     <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
-        <input
+      <StockSearchField
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
+          onChange={(value) => {
+            setQuery(value);
             setNotFound(false);
           }}
+          onSubmit={handleSubmit}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 200)}
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder={placeholder}
-          className="h-11 w-full rounded-xl bg-bg-card-secondary pl-10 pr-4 text-sm text-text-primary placeholder:text-text-secondary/60 outline-none ring-1 ring-white/[0.06] transition-all focus:ring-brand/30"
         />
-      </div>
 
       {notFound && query.trim() && (
         <p className="mt-2 text-xs text-danger">

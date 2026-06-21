@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { SplashGate } from "@/components/splash-gate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,7 +52,9 @@ export default function RootLayout({
     >
       <body className="h-full text-white">
         <div id="root" className="h-full">
-          <AppShell>{children}</AppShell>
+          <SplashGate>
+            <AppShell>{children}</AppShell>
+          </SplashGate>
         </div>
       </body>
     </html>

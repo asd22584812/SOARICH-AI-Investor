@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
 import { getStockAnalysis } from "@/data/mock-data";
+import { StockSearchField } from "@/components/home/stock-search-field";
 import { StockChart } from "@/components/charts/stock-chart";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
 import { AIConclusionHero } from "@/components/analysis/ai-conclusion-hero";
@@ -141,16 +141,12 @@ function SearchInput({
   onSearch: () => void;
 }) {
   return (
-    <div className="relative">
-      <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
-      <input
-        value={symbol}
-        onChange={(e) => setSymbol(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSearch()}
-        placeholder="2330 / 台積電 / NVDA / NVIDIA"
-        className="h-11 w-full rounded-xl bg-bg-card-secondary pl-10 pr-4 text-sm text-text-primary placeholder:text-text-secondary/60 outline-none ring-1 ring-white/[0.06] focus:ring-brand/30"
-      />
-    </div>
+    <StockSearchField
+      value={symbol}
+      onChange={setSymbol}
+      onSubmit={onSearch}
+      placeholder="2330 / 台積電 / NVDA / NVIDIA"
+    />
   );
 }
 
