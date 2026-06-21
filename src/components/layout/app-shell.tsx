@@ -7,8 +7,8 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   return (
     <div className="viewport-root">
-      <div className="phone-frame">
-        <div className="phone-frame__island" aria-hidden />
+      <div className="phone-frame phone-border">
+        <div className="dynamic-island" aria-hidden />
         <div className="phone-frame__screen">
           <main className="app-content app-bg">{children}</main>
           <BottomNav />
