@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #050505;
+  --bg-card: #0e0e0e;
+  --bg-card-secondary: #151515;
+  --text-primary: #ffffff;
+  --text-secondary: #9a9a9a;
+  --brand-gold: #c8a85d;
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(14, 14, 14, 0.72);
+}
+
+@theme inline {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-secondary: var(--bg-card-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-brand: var(--brand-gold);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+  overflow-x: hidden;
+}
+
+body {
+  background: #080808;
+  color: var(--text-primary);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", system-ui, sans-serif;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Viewport: center phone ── */
+.viewport-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: #080808;
+  overflow-x: hidden;
+}
+
+/* ── iPhone 14 Pro frame ── */
+.phone-frame {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  max-height: 852px;
+  aspect-ratio: 393 / 852;
+  overflow: hidden;
+  border-radius: 48px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0a0a0a;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 40px 80px -16px rgba(0, 0, 0, 0.75),
+    0 0 60px -8px rgba(200, 168, 93, 0.06);
+}
+
+.phone-frame__island {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 30;
+  height: 28px;
+  width: 104px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: #000;
+  pointer-events: none;
+}
+
+.phone-frame__screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.phone-frame__home-bar {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 30;
+  height: 4px;
+  width: 120px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+}
+
+/* ── App background (inside phone frame) ── */
+.app-bg {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(200, 168, 93, 0.16), transparent 32%),
+    radial-gradient(circle at 85% 25%, rgba(34, 197, 94, 0.1), transparent 35%),
+    radial-gradient(circle at 50% 100%, rgba(200, 168, 93, 0.08), transparent 42%),
+    linear-gradient(180deg, #171611 0%, #080908 48%, #020403 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 75%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 75%);
+}
+
+.app-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  background:
+    linear-gradient(135deg, transparent 10%, rgba(34, 197, 94, 0.15) 10.5%, transparent 11%),
+    linear-gradient(25deg, transparent 55%, rgba(200, 168, 93, 0.12) 55.5%, transparent 56%);
+  filter: blur(0.5px);
+}
+
+/* ── Scrollable app content ── */
+.app-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 48px 20px 130px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Bottom navigation ── */
+.bottom-nav {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 18px;
+  height: 76px;
+  border-radius: 28px;
+  z-index: 50;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 14, 14, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.bottom-nav__inner {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 4px;
+}
+
+/* ── AI recommendation carousel ── */
+.recommendation-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.recommendation-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.recommendation-card {
+  width: calc(100% - 32px);
+  min-width: calc(100% - 32px);
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  border-radius: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* ── Watchlist card ── */
+.watchlist-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pt-safe {
+  padding-top: 0;
+}
+
+.safe-area-bottom {
+  padding-bottom: 0;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.card-glass,
+.glass-card,
+.glass-card-elevated {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 18px 45px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}

@@ -1,0 +1,18 @@
+{
+  "name": "SOARICH AI Investor",
+  "short_name": "SOARICH",
+  "description": "AI 驅動的專業股票分析平台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
