@@ -40,7 +40,7 @@ function AnalysisContent() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-text-secondary">輸入股票代號開始分析</p>
           <p className="mt-2 text-xs text-text-secondary/60">
-            2330 · NVDA · AAPL · GOOGL
+            2330 · NVDA · AAPL · MSFT · GOOGL
           </p>
         </div>
       </div>
