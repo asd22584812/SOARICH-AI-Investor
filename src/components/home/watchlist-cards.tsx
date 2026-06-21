@@ -8,13 +8,16 @@ import { Sparkline } from "@/components/charts/sparkline";
 
 interface WatchlistCardsProps {
   items: WatchlistItem[];
+  compact?: boolean;
 }
 
-export function WatchlistCards({ items }: WatchlistCardsProps) {
+export function WatchlistCards({ items, compact }: WatchlistCardsProps) {
   return (
     <section className="w-full overflow-hidden">
-      <h2 className="mb-3 text-base font-semibold text-text-primary">自選股</h2>
-      <div className="space-y-3">
+      <h2 className={cn("text-base font-semibold text-text-primary", compact ? "mb-2.5" : "mb-3")}>
+        自選股
+      </h2>
+      <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
         {items.length === 0 ? (
           <p className="py-8 text-center text-sm text-text-secondary">尚無自選股</p>
         ) : (

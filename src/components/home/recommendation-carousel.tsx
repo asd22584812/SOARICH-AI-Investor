@@ -3,19 +3,21 @@
 import Link from "next/link";
 import type { AIRecommendation } from "@/types/stock";
 import { BUY_SIGNAL_CONFIG } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
 
 interface RecommendationCarouselProps {
   recommendations: AIRecommendation[];
+  compact?: boolean;
 }
 
 export function RecommendationCarousel({
   recommendations,
+  compact,
 }: RecommendationCarouselProps) {
   return (
     <section className="w-full max-w-full overflow-hidden">
-      <div className="mb-3 flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", compact ? "mb-2.5" : "mb-3")}>
         <Sparkles className="h-4 w-4 shrink-0 text-brand" />
         <h2 className="text-base font-semibold text-text-primary">AI 今日推薦</h2>
       </div>

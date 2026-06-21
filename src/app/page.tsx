@@ -19,7 +19,7 @@ export default function HomePage() {
   const recommendations = getRecommendations(market);
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5">
       <AppHeader />
 
       <AssetHero />
@@ -35,9 +35,9 @@ export default function HomePage() {
         onChange={setMarket}
       />
 
-      <RecommendationCarousel recommendations={recommendations} />
+      <RecommendationCarousel recommendations={recommendations} compact />
 
-      <WatchlistCards items={watchlist} />
+      <WatchlistCards items={watchlist} compact />
     </div>
   );
 }

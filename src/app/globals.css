@@ -85,8 +85,8 @@ body {
 }
 
 .logo {
-  width: 42px;
-  height: 42px;
+  width: 45px;
+  height: 45px;
   border-radius: 12px;
   flex-shrink: 0;
   object-fit: cover;
@@ -94,7 +94,7 @@ body {
 }
 
 .title {
-  font-size: 24px;
+  font-size: 25.5px;
   font-weight: 800;
   line-height: 1.1;
   color: var(--text-primary);
@@ -125,8 +125,8 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 700;
   min-width: 0;
   line-height: 1;
@@ -134,8 +134,8 @@ body {
 }
 
 .nav-item svg {
-  width: 30px;
-  height: 30px;
+  width: 33px;
+  height: 33px;
   flex-shrink: 0;
 }
 
@@ -193,6 +193,13 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ── Mobile UI scale (~6.5%) ── */
+@media (max-width: 767px) {
+  html {
+    font-size: 106.5%;
+  }
 }
 
 /* ── Desktop: same full-screen app for now ── */
