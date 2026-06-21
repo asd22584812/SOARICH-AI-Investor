@@ -14,20 +14,20 @@ export function RecommendationCarousel({
   recommendations,
 }: RecommendationCarouselProps) {
   return (
-    <section className="w-full overflow-hidden">
+    <section className="w-full max-w-full overflow-hidden">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-4 w-4 shrink-0 text-brand" />
         <h2 className="text-base font-semibold text-text-primary">AI 今日推薦</h2>
       </div>
 
-      <div className="recommendation-carousel">
+      <div className="carousel">
         {recommendations.map((rec) => {
           const signal = BUY_SIGNAL_CONFIG[rec.buySignal];
           return (
             <Link
               key={rec.symbol}
               href={`/analysis?symbol=${rec.symbol}`}
-              className="recommendation-card card-glass"
+              className="recommend-card card-glass"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">

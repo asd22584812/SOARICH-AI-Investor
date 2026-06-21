@@ -34,263 +34,119 @@
 }
 
 html,
-body,
-.app-root,
-main.app-content {
-  min-height: 100dvh;
-  height: 100dvh;
-  overflow: hidden;
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  background: #050505;
 }
 
 html {
   color-scheme: dark;
-  overflow-x: hidden;
 }
 
 body {
-  background: #080908;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: var(--text-primary);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "SF Pro Text", system-ui, sans-serif;
-  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* ── Mobile app shell ── */
+.mobile-app {
+  width: 100%;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(200, 168, 93, 0.14), transparent 35%),
+    radial-gradient(circle at 90% 20%, rgba(34, 197, 94, 0.1), transparent 38%),
+    linear-gradient(180deg, #15140f 0%, #080908 46%, #020403 100%);
+  color: white;
   overflow-x: hidden;
 }
 
-/* ── Viewport / app root ── */
-.viewport-root,
-.app-root {
+.mobile-content {
   width: 100%;
+  box-sizing: border-box;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: calc(env(safe-area-inset-top) + 12px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 132px);
 }
 
-/* ── Phone frame: mobile = full screen app ── */
-.phone-frame {
-  position: relative;
-  width: 100vw;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
-  border-radius: 0;
-  border: none;
-  box-shadow: none;
-  background: transparent;
-}
-
-.phone-border {
-  border: none;
-  box-shadow: none;
-}
-
-.phone-frame__screen {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.dynamic-island,
-.phone-frame__home-bar {
-  display: none;
-  pointer-events: none;
-}
-
-/* ── Brand header ── */
-.app-header {
+/* ── Header ── */
+.header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-top: calc(env(safe-area-inset-top) + 12px);
-  margin-top: calc(-1 * env(safe-area-inset-top));
   margin-bottom: 24px;
 }
 
-.app-logo {
-  width: 40px;
-  height: 40px;
+.logo {
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
-  box-shadow: 0 0 24px rgba(200, 168, 93, 0.35);
   flex-shrink: 0;
   object-fit: cover;
+  box-shadow: 0 0 24px rgba(200, 168, 93, 0.35);
 }
 
-.app-header__title {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.2;
+.title {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
-/* ── App background ── */
-.app-bg {
-  background:
-    radial-gradient(circle at 20% 0%, rgba(200, 168, 93, 0.16), transparent 32%),
-    radial-gradient(circle at 85% 25%, rgba(34, 197, 94, 0.1), transparent 35%),
-    radial-gradient(circle at 50% 100%, rgba(200, 168, 93, 0.08), transparent 42%),
-    linear-gradient(180deg, #171611 0%, #080908 48%, #020403 100%);
-  position: relative;
-}
-
-.app-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 36px 36px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 75%);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 75%);
-}
-
-.app-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.12;
-  background:
-    linear-gradient(135deg, transparent 10%, rgba(34, 197, 94, 0.15) 10.5%, transparent 11%),
-    linear-gradient(25deg, transparent 55%, rgba(200, 168, 93, 0.12) 55.5%, transparent 56%);
-  filter: blur(0.5px);
-}
-
-/* ── Scrollable app content ── */
-.app-content {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100dvh;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 0 20px calc(env(safe-area-inset-bottom) + 110px);
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.page-safe-top {
-  padding-top: calc(env(safe-area-inset-top) + 12px);
-}
-
-.app-content::-webkit-scrollbar {
-  display: none;
-}
-
-/* ── Bottom navigation shared ── */
-.bottom-nav {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(12, 12, 12, 0.86);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-}
-
-.bottom-nav__inner {
-  display: flex;
-  height: 100%;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 6px;
-}
-
-.bottom-nav-item {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.bottom-nav-icon {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-}
-
-.bottom-nav-label {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-/* Mobile: viewport-fixed nav (outside phone frame) */
-.bottom-nav--viewport {
-  display: block;
+/* ── Bottom navigation ── */
+.mobile-bottom-nav {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: max(env(safe-area-inset-bottom), 8px);
-  height: 82px;
-  border-radius: 30px;
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  height: 86px;
   z-index: 99999;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  border-radius: 32px;
+  background: rgba(12, 12, 12, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
 }
 
-/* Frame nav hidden on mobile */
-.bottom-nav--frame {
-  display: none;
-}
-
-/* ── Mobile bottom nav (max-width: 767px) ── */
-@media (max-width: 767px) {
-  .bottom-nav--viewport {
-    position: fixed;
-    left: 16px;
-    right: 16px;
-    bottom: max(env(safe-area-inset-bottom), 8px);
-  }
-}
-
-/* ── AI recommendation carousel ── */
-.recommendation-carousel {
+.nav-item {
   display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 0;
+  line-height: 1;
+  text-decoration: none;
 }
 
-.recommendation-carousel::-webkit-scrollbar {
-  display: none;
-}
-
-.recommendation-card {
-  width: calc(100% - 32px);
-  min-width: calc(100% - 32px);
+.nav-item svg {
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  scroll-snap-align: start;
-  border-radius: 16px;
-  padding: 16px;
-  box-sizing: border-box;
 }
 
-.watchlist-card {
+/* ── Cards ── */
+.card-glass,
+.glass-card,
+.glass-card-elevated,
+.watchlist-card,
+.recommend-card {
   width: 100%;
   box-sizing: border-box;
-}
-
-.pt-safe {
-  padding-top: 0;
-}
-
-.safe-area-bottom {
-  padding-bottom: 0;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 .card-glass,
@@ -305,108 +161,45 @@ body {
   -webkit-backdrop-filter: blur(18px);
 }
 
-/* ── Desktop: iPhone 14 Pro simulator (>= 768px) ── */
+/* ── AI recommendation carousel ── */
+.carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  max-width: 100%;
+}
+
+.carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.recommend-card {
+  flex: 0 0 calc(100vw - 56px);
+  max-width: calc(100vw - 56px);
+  scroll-snap-align: start;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Desktop: same full-screen app for now ── */
 @media (min-width: 768px) {
-  html,
-  body,
-  .app-root,
-  main.app-content {
-    height: auto;
-    min-height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  body {
-    background: #080808;
-  }
-
-  .viewport-root,
-  .app-root {
-    overflow: visible;
-  }
-
-  .viewport-root {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: #080808;
-  }
-
-  .phone-frame {
-    width: 393px;
-    height: 852px;
-    max-height: 852px;
-    aspect-ratio: 393 / 852;
-    flex-shrink: 0;
-    border-radius: 48px;
-    background: #0a0a0a;
-  }
-
-  .phone-border {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-      0 40px 80px -16px rgba(0, 0, 0, 0.75),
-      0 0 60px -8px rgba(200, 168, 93, 0.06);
-  }
-
-  .dynamic-island {
-    display: block;
-    position: absolute;
-    top: 12px;
-    left: 50%;
-    z-index: 30;
-    height: 28px;
-    width: 104px;
-    transform: translateX(-50%);
-    border-radius: 9999px;
-    background: #000;
-  }
-
-  .phone-frame__home-bar {
-    display: block;
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    z-index: 30;
-    height: 4px;
-    width: 120px;
-    transform: translateX(-50%);
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.22);
-  }
-
-  .app-header {
-    padding-top: 12px;
-    margin-top: 0;
-  }
-
-  .page-safe-top {
-    padding-top: 12px;
-  }
-
-  .app-content {
-    height: 100%;
-    overflow-y: auto;
-    padding: 12px 20px 130px;
-  }
-
-  /* Hide viewport nav on desktop */
-  .bottom-nav--viewport {
-    display: none !important;
-  }
-
-  /* Show frame nav inside simulator */
-  .bottom-nav--frame {
-    display: block;
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 18px;
-    height: 76px;
-    border-radius: 28px;
-    z-index: 50;
+  .mobile-app {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
   }
 }

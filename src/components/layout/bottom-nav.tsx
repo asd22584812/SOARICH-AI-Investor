@@ -13,11 +13,11 @@ const navItems = [
   { href: "/profile", label: "我的", icon: User },
 ];
 
-function NavLinks() {
+export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <>
+    <nav className="mobile-bottom-nav" aria-label="主導航">
       {navItems.map((item) => {
         const isActive =
           item.href === "/"
@@ -30,37 +30,15 @@ function NavLinks() {
             key={item.href}
             href={item.href}
             className={cn(
-              "bottom-nav-item",
+              "nav-item",
               isActive ? "text-brand" : "text-text-secondary"
             )}
           >
-            <Icon className="bottom-nav-icon" strokeWidth={isActive ? 2.2 : 1.8} />
-            <span className="bottom-nav-label">{item.label}</span>
+            <Icon strokeWidth={isActive ? 2.2 : 1.8} />
+            <span>{item.label}</span>
           </Link>
         );
       })}
-    </>
-  );
-}
-
-/** Fixed to viewport — mobile真機 */
-export function BottomNavViewport() {
-  return (
-    <nav className="bottom-nav bottom-nav--viewport" aria-label="主導航">
-      <div className="bottom-nav__inner">
-        <NavLinks />
-      </div>
-    </nav>
-  );
-}
-
-/** Absolute inside phone frame — desktop模擬器 */
-export function BottomNavFrame() {
-  return (
-    <nav className="bottom-nav bottom-nav--frame" aria-label="主導航">
-      <div className="bottom-nav__inner">
-        <NavLinks />
-      </div>
     </nav>
   );
 }

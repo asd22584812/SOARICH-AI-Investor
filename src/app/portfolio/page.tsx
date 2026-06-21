@@ -9,7 +9,7 @@ export default function PortfolioPage() {
   const positiveTotal = p.totalReturn >= 0;
 
   return (
-    <div className="space-y-6 page-safe-top">
+    <div className="space-y-6">
       <header>
         <h1 className="text-lg font-semibold text-text-primary">投資組合</h1>
       </header>

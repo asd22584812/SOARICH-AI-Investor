@@ -2,16 +2,16 @@ import Image from "next/image";
 
 export function AppHeader() {
   return (
-    <header className="app-header">
+    <header className="header">
       <Image
         src="/logo.png"
         alt="SOARICH Investor"
-        width={40}
-        height={40}
-        className="app-logo"
+        width={42}
+        height={42}
+        className="logo"
         priority
       />
-      <span className="app-header__title">SOARICH Investor</span>
+      <span className="title">SOARICH Investor</span>
     </header>
   );
 }

@@ -49,7 +49,7 @@ export default function RootLayout({
       lang="zh-TW"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="app-root text-white">
+      <body className="text-white">
         <AppShell>{children}</AppShell>
       </body>
     </html>
