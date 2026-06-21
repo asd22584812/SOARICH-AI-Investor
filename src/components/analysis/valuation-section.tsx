@@ -13,8 +13,11 @@ export function ValuationSection({
   currency,
 }: ValuationSectionProps) {
   return (
-    <section className="glass-card rounded-2xl p-5">
-      <h2 className="mb-5 text-base font-semibold text-text-primary">合理價分析</h2>
+    <section className="glass-card rounded-3xl p-5">
+      <h2 className="mb-1 text-base font-semibold text-text-primary">合理價區間</h2>
+      <p className="mb-5 text-xs text-text-secondary">
+        安全價 · 合理價 · 樂觀價與目前股價落點
+      </p>
       <PriceRangeBar
         valuation={valuation}
         currentPrice={currentPrice}

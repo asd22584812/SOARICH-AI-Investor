@@ -73,12 +73,26 @@ export interface AIConclusion {
   summary: string;
 }
 
+export interface FinancialProfile {
+  score: number;
+  roe: number;
+  roa: number;
+  grossMargin: number;
+  operatingMargin: number;
+  debtToEquity: number;
+  eps: number;
+  growthRate: number;
+  pe: number;
+  pb: number;
+}
+
 export interface StockAnalysis extends StockQuote {
   aiScore: AIScoreBreakdown;
   totalScore: number;
   buySignal: BuySignal;
   valuation: ValuationAnalysis;
   moat: MoatAnalysis;
+  financialProfile: FinancialProfile;
   keyPersonRisk: KeyPersonRisk;
   buffett: BuffettScore;
   aiConclusion: AIConclusion;

@@ -15,7 +15,7 @@ export function BuffettSection({ buffett }: BuffettSectionProps) {
   ];
 
   return (
-    <section className="glass-card rounded-2xl p-5">
+    <section className="glass-card rounded-3xl p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Crown className="h-4 w-4 text-brand" />

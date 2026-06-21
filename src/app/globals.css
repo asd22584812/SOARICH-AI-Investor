@@ -264,6 +264,24 @@ body {
   cursor: not-allowed;
 }
 
+/* ── Analysis page polish ── */
+.analysis-hero-card {
+  background:
+    linear-gradient(145deg, rgba(200, 168, 93, 0.08), rgba(255, 255, 255, 0.02)),
+    rgba(14, 14, 14, 0.72);
+}
+
+.buy-signal-hero {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+.analysis-conclusion-card {
+  background:
+    linear-gradient(160deg, rgba(200, 168, 93, 0.1), rgba(14, 14, 14, 0.85));
+}
+
 /* ── Splash screen ── */
 html.splash-active,
 html.splash-active body {

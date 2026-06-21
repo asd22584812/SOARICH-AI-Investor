@@ -1,42 +1,37 @@
 import type { AIScoreBreakdown } from "@/types/stock";
 import { SCORE_LABELS } from "@/lib/constants";
 import { ScoreGauge } from "@/components/charts/score-gauge";
-import { BUY_SIGNAL_CONFIG } from "@/lib/constants";
-import type { BuySignal } from "@/types/stock";
 
 interface AIScoreSectionProps {
   totalScore: number;
   scores: AIScoreBreakdown;
-  buySignal: BuySignal;
 }
 
-export function AIScoreSection({
-  totalScore,
-  scores,
-  buySignal,
-}: AIScoreSectionProps) {
-  const signalLabel = BUY_SIGNAL_CONFIG[buySignal].label;
+export function AIScoreSection({ totalScore, scores }: AIScoreSectionProps) {
   const items = Object.entries(scores) as [keyof AIScoreBreakdown, number][];
 
   return (
-    <section className="glass-card rounded-2xl p-5">
-      <h2 className="mb-4 text-base font-semibold text-text-primary">AI 評分</h2>
-      <div className="flex flex-col items-center">
-        <ScoreGauge score={totalScore} label={signalLabel} />
+    <section className="glass-card rounded-3xl p-5">
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-text-primary">AI 綜合評分</h2>
+        <span className="text-xs text-text-secondary">SOARICH Engine</span>
       </div>
-      <div className="mt-6 space-y-3">
+      <div className="mt-2 flex flex-col items-center">
+        <ScoreGauge score={totalScore} label="綜合評分" />
+      </div>
+      <div className="mt-6 space-y-3.5">
         {items.map(([key, value]) => (
           <div key={key} className="flex items-center gap-3">
-            <span className="w-14 text-xs text-text-secondary">
+            <span className="w-16 text-xs text-text-secondary">
               {SCORE_LABELS[key]}
             </span>
-            <div className="flex-1 h-1.5 rounded-full bg-bg-card-secondary overflow-hidden">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-bg-card-secondary">
               <div
-                className="h-full rounded-full bg-brand transition-all duration-500"
+                className="h-full rounded-full bg-gradient-to-r from-brand/70 to-brand transition-all duration-500"
                 style={{ width: `${value}%` }}
               />
             </div>
-            <span className="w-8 text-right text-xs font-medium text-text-primary">
+            <span className="w-8 text-right text-xs font-semibold text-text-primary">
               {value}
             </span>
           </div>

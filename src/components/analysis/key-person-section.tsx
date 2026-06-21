@@ -18,7 +18,7 @@ export function KeyPersonSection({ risk }: KeyPersonSectionProps) {
   const config = RISK_LEVEL_CONFIG[risk.level];
 
   return (
-    <section className="glass-card rounded-2xl p-5">
+    <section className="glass-card rounded-3xl p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold text-text-primary">關鍵人物風險</h2>
         <div

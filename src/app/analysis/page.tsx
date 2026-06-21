@@ -4,15 +4,16 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getStockAnalysis } from "@/data/mock-data";
 import { StockSearchField } from "@/components/home/stock-search-field";
-import { StockChart } from "@/components/charts/stock-chart";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
-import { AIConclusionHero } from "@/components/analysis/ai-conclusion-hero";
-import { BuySignalHero } from "@/components/analysis/buy-signal-hero";
 import { AIScoreSection } from "@/components/analysis/ai-score-section";
+import { BuySignalHero } from "@/components/analysis/buy-signal-hero";
 import { ValuationSection } from "@/components/analysis/valuation-section";
+import { MarginOfSafetySection } from "@/components/analysis/margin-of-safety-section";
 import { MoatSection } from "@/components/analysis/moat-section";
-import { KeyPersonSection } from "@/components/analysis/key-person-section";
+import { FinancialsSection } from "@/components/analysis/financials-section";
 import { BuffettSection } from "@/components/analysis/buffett-section";
+import { KeyPersonSection } from "@/components/analysis/key-person-section";
+import { AIConclusionHero } from "@/components/analysis/ai-conclusion-hero";
 
 function AnalysisContent() {
   const router = useRouter();
@@ -77,27 +78,15 @@ function AnalysisContent() {
 
   if (!analysis) return null;
 
-  const seed = analysis.symbol.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-
   return (
-    <div className="space-y-5 pb-6">
+    <div className="analysis-page space-y-5 pb-6">
+      <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
+
       <StockPriceHeader stock={analysis} />
 
-      <StockChart
-        basePrice={analysis.price}
-        changePercent={analysis.changePercent}
-        seed={seed}
-      />
-
-      <AIConclusionHero analysis={analysis} />
+      <AIScoreSection totalScore={analysis.totalScore} scores={analysis.aiScore} />
 
       <BuySignalHero signal={analysis.buySignal} />
-
-      <AIScoreSection
-        totalScore={analysis.totalScore}
-        scores={analysis.aiScore}
-        buySignal={analysis.buySignal}
-      />
 
       <ValuationSection
         valuation={analysis.valuation}
@@ -105,28 +94,17 @@ function AnalysisContent() {
         currency={analysis.currency}
       />
 
+      <MarginOfSafetySection valuation={analysis.valuation} />
+
       <MoatSection moat={analysis.moat} />
 
-      <KeyPersonSection risk={analysis.keyPersonRisk} />
+      <FinancialsSection financials={analysis.financialProfile} />
 
       <BuffettSection buffett={analysis.buffett} />
 
-      <section className="glass-card rounded-2xl p-5">
-        <h2 className="mb-2 text-base font-semibold text-text-primary">成長展望</h2>
-        <p className="text-sm leading-relaxed text-text-secondary">
-          {analysis.aiConclusion.growthOutlook}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {analysis.aiConclusion.mainRisks.map((r) => (
-            <span
-              key={r}
-              className="rounded-full bg-bg-card-secondary px-3 py-1 text-xs text-text-secondary"
-            >
-              {r}
-            </span>
-          ))}
-        </div>
-      </section>
+      <KeyPersonSection risk={analysis.keyPersonRisk} />
+
+      <AIConclusionHero analysis={analysis} />
     </div>
   );
 }

@@ -60,9 +60,9 @@ export const SCORE_LABELS: Record<string, string> = {
 
 export const MOAT_RADAR_LABELS: Record<string, string> = {
   brand: "品牌",
-  technology: "技術",
+  technology: "技術壁壘",
   scaleEconomy: "規模經濟",
-  switchingCost: "客戶黏著",
+  switchingCost: "轉換成本",
   networkEffect: "網路效應",
 };
 

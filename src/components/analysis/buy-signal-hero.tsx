@@ -12,17 +12,17 @@ export function BuySignalHero({ signal }: BuySignalHeroProps) {
   return (
     <section
       className={cn(
-        "flex flex-col items-center rounded-2xl border py-8 px-5",
+        "buy-signal-hero flex flex-col items-center rounded-3xl border px-5 py-8 text-center",
         config.bg,
         config.border
       )}
     >
-      <span className="text-5xl">{config.emoji}</span>
-      <p className={cn("mt-3 text-2xl font-bold", config.color)}>
+      <span className="text-6xl leading-none">{config.emoji}</span>
+      <p className={cn("mt-4 text-3xl font-black tracking-tight", config.color)}>
         {config.label}
       </p>
-      <p className="mt-2 text-center text-sm text-text-secondary">
-        依據目前股價與合理價比較
+      <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-text-secondary">
+        依據合理價、安全邊際與 AI 綜合評分計算
       </p>
     </section>
   );

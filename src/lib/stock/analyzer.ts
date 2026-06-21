@@ -285,6 +285,18 @@ export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
     keyPersonRisk,
     buffett,
     aiConclusion,
+    financialProfile: {
+      score: result.financialScore,
+      roe: stock.roe,
+      roa: stock.roa,
+      grossMargin: stock.grossMargin,
+      operatingMargin: stock.operatingMargin,
+      debtToEquity: stock.debtToEquity,
+      eps: stock.eps,
+      growthRate: stock.growthRate,
+      pe: stock.pe,
+      pb: stock.pb,
+    },
   };
 }
 
