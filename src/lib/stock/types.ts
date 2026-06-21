@@ -51,6 +51,7 @@ export interface ValuationResult {
   safetyPrice: number;
   bullCasePrice: number;
   marginOfSafety: number;
+  companyType: "growth" | "value";
 }
 
 export interface MoatScore {

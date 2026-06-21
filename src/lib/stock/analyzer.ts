@@ -40,7 +40,7 @@ function clampScore(value: number): number {
 }
 
 function calculateFinancialScore(stock: StockInput): number {
-  const roeScore = Math.min(stock.roe, 40) * 1.8;
+  const roeScore = (Math.min(stock.roe, 30) / 30) * 100;
   const roaScore = Math.min(stock.roa, 25) * 2.4;
   const marginScore = stock.operatingMargin * 1.2;
   const debtPenalty = Math.min(stock.debtToEquity, 2) * 12;

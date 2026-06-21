@@ -1,14 +1,28 @@
 import type { StockFinancials, ValuationResult } from "./types";
 
 const DCF_DISCOUNT_RATE = 0.1;
-const DCF_TERMINAL_GROWTH_CAP = 0.05;
+const DCF_TERMINAL_GROWTH_CAP = 0.15;
+const GROWTH_STOCK_THRESHOLD = 20;
+
+export type CompanyValuationType = "growth" | "value";
+
+const VALUE_WEIGHTS = { dcf: 0.4, pe: 0.3, peg: 0.2, pb: 0.1 };
+const GROWTH_WEIGHTS = { dcf: 0.2, pe: 0.35, peg: 0.35, pb: 0.1 };
+
+export function getCompanyValuationType(growthRate: number): CompanyValuationType {
+  return growthRate > GROWTH_STOCK_THRESHOLD ? "growth" : "value";
+}
+
+export function getValuationWeights(growthRate: number) {
+  return growthRate > GROWTH_STOCK_THRESHOLD ? GROWTH_WEIGHTS : VALUE_WEIGHTS;
+}
 
 export function calculateDCFValue(financials: StockFinancials): number {
   const growth = Math.min(financials.growthRate / 100, DCF_TERMINAL_GROWTH_CAP);
-  const discount = DCF_DISCOUNT_RATE;
+  const discount = Math.max(DCF_DISCOUNT_RATE, growth + 0.025);
 
-  if (discount <= growth || financials.freeCashFlowPerShare <= 0) {
-    return Math.max(financials.freeCashFlowPerShare * 15, 0);
+  if (financials.freeCashFlowPerShare <= 0) {
+    return 0;
   }
 
   return (financials.freeCashFlowPerShare * (1 + growth)) / (discount - growth);
@@ -42,11 +56,14 @@ export function calculateFairValue(
   const pegValue = calculatePEGValue(financials);
   const pbValue = calculatePBValue(financials);
 
+  const companyType = getCompanyValuationType(financials.growthRate);
+  const weights = getValuationWeights(financials.growthRate);
+
   const fairValue =
-    dcfValue * 0.4 +
-    peValue * 0.3 +
-    pegValue * 0.2 +
-    pbValue * 0.1;
+    dcfValue * weights.dcf +
+    peValue * weights.pe +
+    pegValue * weights.peg +
+    pbValue * weights.pb;
 
   const safeFairValue = fairValue > 0 ? fairValue : currentPrice;
   const marginOfSafety =
@@ -63,5 +80,6 @@ export function calculateFairValue(
     safetyPrice: safeFairValue * 0.8,
     bullCasePrice: safeFairValue * 1.25,
     marginOfSafety,
+    companyType,
   };
 }
