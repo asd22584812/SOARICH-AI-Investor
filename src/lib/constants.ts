@@ -5,7 +5,7 @@ export const BUY_SIGNAL_CONFIG: Record<
   { label: string; emoji: string; color: string; bg: string; border: string }
 > = {
   strongly_undervalued: {
-    label: "強烈低估",
+    label: "強烈買入",
     emoji: "🟢",
     color: "text-success",
     bg: "bg-success/10",
@@ -19,21 +19,21 @@ export const BUY_SIGNAL_CONFIG: Record<
     border: "border-success/25",
   },
   watch: {
-    label: "可觀察",
+    label: "觀察",
     emoji: "🟡",
     color: "text-warning",
     bg: "bg-warning/10",
     border: "border-warning/25",
   },
   overvalued: {
-    label: "偏高估",
+    label: "謹慎",
     emoji: "🟠",
     color: "text-orange-400",
     bg: "bg-orange-500/10",
     border: "border-orange-500/25",
   },
   avoid: {
-    label: "不建議買入",
+    label: "避免",
     emoji: "🔴",
     color: "text-danger",
     bg: "bg-danger/10",

@@ -63,10 +63,10 @@ export interface MoatScore {
 }
 
 export type AnalysisBuySignal =
-  | "STRONG_UNDERVALUED"
+  | "STRONG_BUY"
   | "BUY"
   | "WATCH"
-  | "OVERVALUED"
+  | "CAUTIOUS"
   | "AVOID";
 
 export interface BuySignalResult {

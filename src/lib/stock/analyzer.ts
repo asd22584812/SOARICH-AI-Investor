@@ -7,7 +7,10 @@ import type {
 } from "@/types/stock";
 import { calculateMoatScore } from "./moat";
 import { getMockStock } from "./mockData";
-import { getBuySignal } from "./signal";
+import {
+  getBuySignalFromScore,
+  mapAnalysisSignalToUI,
+} from "./signal";
 import type {
   StockAnalysisResult,
   StockFinancials,
@@ -146,7 +149,7 @@ function buildAIConclusion(
 
   return {
     isUndervalued,
-    suitableForDCA: result.buySignal.signal !== "AVOID",
+    suitableForDCA: result.totalScore >= 80,
     undervaluedPercent,
     highlights: [
       result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
@@ -163,18 +166,7 @@ function buildAIConclusion(
 }
 
 function mapBuySignalToUI(signal: StockAnalysisResult["buySignal"]["signal"]): BuySignal {
-  switch (signal) {
-    case "STRONG_UNDERVALUED":
-      return "strongly_undervalued";
-    case "BUY":
-      return "good_buy";
-    case "WATCH":
-      return "watch";
-    case "OVERVALUED":
-      return "overvalued";
-    case "AVOID":
-      return "avoid";
-  }
+  return mapAnalysisSignalToUI(signal);
 }
 
 export function analyzeStock(ticker: string): StockAnalysisResult | null {
@@ -183,7 +175,6 @@ export function analyzeStock(ticker: string): StockAnalysisResult | null {
 
   const financials = toFinancials(stock);
   const valuation = calculateFairValue(financials, stock.currentPrice);
-  const buySignal = getBuySignal(valuation.marginOfSafety);
   const moat = calculateMoatScore(stock);
   const financialScore = calculateFinancialScore(stock);
   const growthScore = calculateGrowthScore(stock);
@@ -201,7 +192,9 @@ export function analyzeStock(ticker: string): StockAnalysisResult | null {
       valuationScore * 0.15
   );
 
-  const aiSummary = `${stock.name}（${stock.ticker}）目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${valuation.marginOfSafety.toFixed(1)}%。綜合評分 ${totalScore} 分，${buySignal.label}。`;
+  const buySignal = getBuySignalFromScore(totalScore);
+
+  const aiSummary = `${stock.name}（${stock.ticker}）AI 綜合評分 ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${valuation.marginOfSafety.toFixed(1)}%。`;
 
   return {
     ticker: stock.ticker,

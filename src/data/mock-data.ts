@@ -8,6 +8,7 @@ import type {
   WatchlistItem,
 } from "@/types/stock";
 import { getStockAnalysisFromEngine } from "@/lib/stock/analyzer";
+import { isHomeRecommendation } from "@/lib/stock/signal";
 import { getAllMockTickers, getMockStocksByMarket } from "@/lib/stock/mockData";
 import { generateAssetHistory, generateSparkline } from "@/lib/chart-utils";
 
@@ -82,6 +83,7 @@ export function getRecommendations(market: Market): AIRecommendation[] {
   return getMockStocksByMarket(market)
     .map((stock) => getStockAnalysisFromEngine(stock.ticker))
     .filter((analysis): analysis is StockAnalysis => analysis !== null)
+    .filter((analysis) => isHomeRecommendation(analysis.totalScore))
     .sort((a, b) => b.totalScore - a.totalScore)
     .slice(0, 5)
     .map((analysis) => ({
