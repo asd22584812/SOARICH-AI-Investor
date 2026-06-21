@@ -1,8 +1,13 @@
 import type { StockFinancials, ValuationResult } from "./types";
 
-const DCF_DISCOUNT_RATE = 0.1;
-const DCF_TERMINAL_GROWTH_CAP = 0.15;
+const DISCOUNT_RATE = 0.1;
+const TERMINAL_GROWTH = 0.025;
+const STAGE1_YEARS = 5;
 const GROWTH_STOCK_THRESHOLD = 20;
+const STAGE1_GROWTH_CAP = { growth: 18, value: 10 } as const;
+const DCF_MAX_PRICE_MULTIPLIER = 2.2;
+const DCF_MIN_PRICE_MULTIPLIER = 0.35;
+const DCF_EPS_FALLBACK_MULTIPLIER = 12;
 
 export type CompanyValuationType = "growth" | "value";
 
@@ -17,15 +22,42 @@ export function getValuationWeights(growthRate: number) {
   return growthRate > GROWTH_STOCK_THRESHOLD ? GROWTH_WEIGHTS : VALUE_WEIGHTS;
 }
 
-export function calculateDCFValue(financials: StockFinancials): number {
-  const growth = Math.min(financials.growthRate / 100, DCF_TERMINAL_GROWTH_CAP);
-  const discount = Math.max(DCF_DISCOUNT_RATE, growth + 0.025);
+function getStage1GrowthRate(growthRate: number): number {
+  const isGrowthStock = growthRate > GROWTH_STOCK_THRESHOLD;
+  const cap = isGrowthStock ? STAGE1_GROWTH_CAP.growth : STAGE1_GROWTH_CAP.value;
+  return Math.min(growthRate, cap) / 100;
+}
 
+function clampDCFValue(dcfValue: number, currentPrice: number): number {
+  const maxDcf = currentPrice * DCF_MAX_PRICE_MULTIPLIER;
+  const minDcf = currentPrice * DCF_MIN_PRICE_MULTIPLIER;
+  return Math.max(minDcf, Math.min(maxDcf, dcfValue));
+}
+
+export function calculateDCFValue(
+  financials: StockFinancials,
+  currentPrice: number
+): number {
   if (financials.freeCashFlowPerShare <= 0) {
-    return 0;
+    return financials.eps > 0
+      ? financials.eps * DCF_EPS_FALLBACK_MULTIPLIER
+      : 0;
   }
 
-  return (financials.freeCashFlowPerShare * (1 + growth)) / (discount - growth);
+  const stage1Growth = getStage1GrowthRate(financials.growthRate);
+  let fcf = financials.freeCashFlowPerShare;
+  let dcfValue = 0;
+
+  for (let year = 1; year <= STAGE1_YEARS; year++) {
+    fcf *= 1 + stage1Growth;
+    dcfValue += fcf / Math.pow(1 + DISCOUNT_RATE, year);
+  }
+
+  const terminalValue =
+    (fcf * (1 + TERMINAL_GROWTH)) / (DISCOUNT_RATE - TERMINAL_GROWTH);
+  dcfValue += terminalValue / Math.pow(1 + DISCOUNT_RATE, STAGE1_YEARS);
+
+  return clampDCFValue(dcfValue, currentPrice);
 }
 
 export function calculatePEValue(financials: StockFinancials): number {
@@ -51,7 +83,7 @@ export function calculateFairValue(
   financials: StockFinancials,
   currentPrice: number
 ): ValuationResult {
-  const dcfValue = calculateDCFValue(financials);
+  const dcfValue = calculateDCFValue(financials, currentPrice);
   const peValue = calculatePEValue(financials);
   const pegValue = calculatePEGValue(financials);
   const pbValue = calculatePBValue(financials);
