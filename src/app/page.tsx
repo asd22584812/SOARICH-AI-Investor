@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Market, WatchlistItem } from "@/types/stock";
 import {
-  DEFAULT_WATCHLIST,
+  getDefaultWatchlist,
   getRecommendations,
 } from "@/data/mock-data";
 import { AssetHero } from "@/components/home/asset-hero";
@@ -15,7 +15,7 @@ import { SegmentControl } from "@/components/ui/segment-control";
 
 export default function HomePage() {
   const [market, setMarket] = useState<Market>("US");
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(DEFAULT_WATCHLIST);
+  const [watchlist] = useState<WatchlistItem[]>(getDefaultWatchlist);
   const recommendations = getRecommendations(market);
 
   return (

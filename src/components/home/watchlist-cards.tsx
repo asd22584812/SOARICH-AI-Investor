@@ -72,7 +72,7 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
             className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${signal.bg} ${signal.border} ${signal.color}`}
           >
             <span>{signal.emoji}</span>
-            <span>{item.buySignal === "good_buy" ? "買入" : signal.label}</span>
+            <span>{signal.label}</span>
           </span>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { getStockAnalysis } from "@/data/mock-data";
 import { StockChart } from "@/components/charts/stock-chart";
@@ -15,6 +15,7 @@ import { KeyPersonSection } from "@/components/analysis/key-person-section";
 import { BuffettSection } from "@/components/analysis/buffett-section";
 
 function AnalysisContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialSymbol = searchParams.get("symbol") ?? "";
   const [symbol, setSymbol] = useState(initialSymbol);
@@ -24,11 +25,24 @@ function AnalysisContent() {
   useEffect(() => {
     if (initialSymbol) {
       setSymbol(initialSymbol);
-      setQuery(initialSymbol);
+      const resolved = getStockAnalysis(initialSymbol);
+      setQuery(resolved?.symbol ?? initialSymbol);
     }
   }, [initialSymbol]);
 
-  const handleSearch = () => setQuery(symbol.trim());
+  const handleSearch = () => {
+    const trimmed = symbol.trim();
+    if (!trimmed) return;
+
+    const resolved = getStockAnalysis(trimmed);
+    if (resolved) {
+      setQuery(resolved.symbol);
+      router.replace(`/analysis?symbol=${resolved.symbol}`);
+      return;
+    }
+
+    setQuery(trimmed);
+  };
 
   if (!query && !analysis) {
     return (
@@ -38,9 +52,9 @@ function AnalysisContent() {
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-text-secondary">輸入股票代號開始分析</p>
+          <p className="text-text-secondary">輸入股票代號或名稱開始分析</p>
           <p className="mt-2 text-xs text-text-secondary/60">
-            2330 · NVDA · AAPL · MSFT · GOOGL
+            2330 · 台積電 · NVDA · NVIDIA · AAPL
           </p>
         </div>
       </div>
@@ -55,7 +69,7 @@ function AnalysisContent() {
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
         <div className="rounded-2xl bg-danger/10 p-8 text-center">
-          <p className="text-danger">找不到「{query}」</p>
+          <p className="text-danger">找不到這檔股票，請確認代號或名稱。</p>
         </div>
       </div>
     );
@@ -131,9 +145,9 @@ function SearchInput({
       <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
       <input
         value={symbol}
-        onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+        onChange={(e) => setSymbol(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && onSearch()}
-        placeholder="2330 / NVDA / AAPL"
+        placeholder="2330 / 台積電 / NVDA / NVIDIA"
         className="h-11 w-full rounded-xl bg-bg-card-secondary pl-10 pr-4 text-sm text-text-primary placeholder:text-text-secondary/60 outline-none ring-1 ring-white/[0.06] focus:ring-brand/30"
       />
     </div>

@@ -11,6 +11,8 @@ import { getStockAnalysisFromEngine } from "@/lib/stock/analyzer";
 import { getAllMockTickers, getMockStocksByMarket } from "@/lib/stock/mockData";
 import { generateAssetHistory, generateSparkline } from "@/lib/chart-utils";
 
+export const WATCHLIST_TICKERS = ["2330", "NVDA", "AAPL"] as const;
+
 export const MOCK_ASSET_OVERVIEW: AssetOverview = {
   totalAssets: 1285320,
   dailyPnL: 12530,
@@ -39,12 +41,49 @@ function buildAllStockAnalyses(): Record<string, StockAnalysis> {
 
 export const ALL_STOCKS: Record<string, StockAnalysis> = buildAllStockAnalyses();
 
+function normalizeQuery(query: string): string {
+  return query.trim().toLowerCase();
+}
+
+function stockMatchScore(stock: StockAnalysis, query: string): number {
+  const q = normalizeQuery(query);
+  if (!q) return 0;
+
+  const symbol = stock.symbol.toLowerCase();
+  const name = stock.name.toLowerCase();
+
+  if (symbol === q || name === q) return 100;
+  if (symbol === q.toUpperCase()) return 100;
+  if (symbol.startsWith(q) || name.startsWith(q)) return 80;
+  if (symbol.includes(q) || name.includes(q)) return 60;
+  return 0;
+}
+
+export function resolveStockQuery(
+  query: string,
+  market?: Market
+): StockAnalysis | null {
+  const q = normalizeQuery(query);
+  if (!q) return null;
+
+  const stocks = Object.values(ALL_STOCKS).filter(
+    (stock) => !market || stock.market === market
+  );
+
+  const ranked = stocks
+    .map((stock) => ({ stock, score: stockMatchScore(stock, query) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.stock ?? null;
+}
+
 export function getRecommendations(market: Market): AIRecommendation[] {
   return getMockStocksByMarket(market)
     .map((stock) => getStockAnalysisFromEngine(stock.ticker))
     .filter((analysis): analysis is StockAnalysis => analysis !== null)
     .sort((a, b) => b.totalScore - a.totalScore)
-    .slice(0, 4)
+    .slice(0, 5)
     .map((analysis) => ({
       symbol: analysis.symbol,
       name: analysis.name,
@@ -62,39 +101,31 @@ export function getRecommendations(market: Market): AIRecommendation[] {
 }
 
 export function getStockAnalysis(symbol: string): StockAnalysis | null {
-  const upper = symbol.toUpperCase();
-  return (
-    getStockAnalysisFromEngine(upper) ??
-    getStockAnalysisFromEngine(symbol) ??
-    ALL_STOCKS[upper] ??
-    ALL_STOCKS[symbol] ??
-    null
-  );
+  return resolveStockQuery(symbol);
 }
 
 export function searchStocks(query: string, market?: Market): StockQuote[] {
-  const q = query.toLowerCase().trim();
+  const q = normalizeQuery(query);
   if (!q) return [];
+
   return Object.values(ALL_STOCKS)
-    .filter((s) => {
-      if (market && s.market !== market) return false;
-      return s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q);
-    })
-    .map(({ symbol, name, market, price, change, changePercent, currency }) => ({
-      symbol,
-      name,
-      market,
-      price,
-      change,
-      changePercent,
-      currency,
+    .filter((stock) => !market || stock.market === market)
+    .map((stock) => ({ stock, score: stockMatchScore(stock, query) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(({ stock }) => ({
+      symbol: stock.symbol,
+      name: stock.name,
+      market: stock.market,
+      price: stock.price,
+      change: stock.change,
+      changePercent: stock.changePercent,
+      currency: stock.currency,
     }));
 }
 
-export const DEFAULT_WATCHLIST: WatchlistItem[] = ["2330", "NVDA", "AAPL"]
-  .map((ticker) => getStockAnalysis(ticker))
-  .filter((stock): stock is StockAnalysis => stock !== null)
-  .map((stock) => ({
+export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
+  return {
     symbol: stock.symbol,
     name: stock.name,
     market: stock.market,
@@ -109,65 +140,56 @@ export const DEFAULT_WATCHLIST: WatchlistItem[] = ["2330", "NVDA", "AAPL"]
       20,
       stock.changePercent >= 0 ? "up" : "down"
     ),
-  }));
+  };
+}
+
+export function getDefaultWatchlist(): WatchlistItem[] {
+  return WATCHLIST_TICKERS.map((ticker) => getStockAnalysis(ticker))
+    .filter((stock): stock is StockAnalysis => stock !== null)
+    .map(toWatchlistItem);
+}
+
+export const DEFAULT_WATCHLIST: WatchlistItem[] = getDefaultWatchlist();
+
+function buildPortfolioHolding(
+  symbol: string,
+  shares: number,
+  avgCost: number,
+  weight: number,
+  returnPercent: number,
+  industry: string,
+  country: string
+) {
+  const stock = ALL_STOCKS[symbol];
+  if (!stock) return null;
+
+  return {
+    symbol: stock.symbol,
+    name: stock.name,
+    market: stock.market,
+    shares,
+    avgCost,
+    currentPrice: stock.price,
+    weight,
+    returnPercent,
+    industry,
+    country,
+  };
+}
 
 export const MOCK_PORTFOLIO: PortfolioSummary = {
-  totalAssets: 1285320,
+  totalAssets: MOCK_ASSET_OVERVIEW.totalAssets,
   totalReturn: 185320,
   totalReturnPercent: 16.84,
-  dailyPnL: 12530,
-  dailyPnLPercent: 1.25,
+  dailyPnL: MOCK_ASSET_OVERVIEW.dailyPnL,
+  dailyPnLPercent: MOCK_ASSET_OVERVIEW.dailyPnLPercent,
   currency: "TWD",
   holdings: [
-    {
-      symbol: "2330",
-      name: "台積電",
-      market: "TW",
-      shares: 400,
-      avgCost: 920,
-      currentPrice: ALL_STOCKS["2330"]?.price ?? 1180,
-      weight: 42,
-      returnPercent: 28.3,
-      industry: "半導體",
-      country: "台灣",
-    },
-    {
-      symbol: "NVDA",
-      name: "NVIDIA",
-      market: "US",
-      shares: 60,
-      avgCost: 88,
-      currentPrice: ALL_STOCKS.NVDA?.price ?? 142,
-      weight: 28,
-      returnPercent: 61.4,
-      industry: "半導體",
-      country: "美國",
-    },
-    {
-      symbol: "AAPL",
-      name: "Apple",
-      market: "US",
-      shares: 80,
-      avgCost: 185,
-      currentPrice: ALL_STOCKS.AAPL?.price ?? 228.52,
-      weight: 18,
-      returnPercent: 23.5,
-      industry: "科技",
-      country: "美國",
-    },
-    {
-      symbol: "2317",
-      name: "鴻海",
-      market: "TW",
-      shares: 800,
-      avgCost: 155,
-      currentPrice: ALL_STOCKS["2317"]?.price ?? 178,
-      weight: 12,
-      returnPercent: 14.8,
-      industry: "電子代工",
-      country: "台灣",
-    },
-  ],
+    buildPortfolioHolding("2330", 400, 920, 42, 28.3, "半導體", "台灣"),
+    buildPortfolioHolding("NVDA", 60, 88, 28, 61.4, "半導體", "美國"),
+    buildPortfolioHolding("AAPL", 80, 185, 18, 23.5, "科技", "美國"),
+    buildPortfolioHolding("2317", 800, 155, 12, 14.8, "電子代工", "台灣"),
+  ].filter((holding): holding is NonNullable<typeof holding> => holding !== null),
   byIndustry: [
     { name: "半導體", value: 70, color: "#C8A85D" },
     { name: "科技", value: 18, color: "#22C55E" },
@@ -179,5 +201,4 @@ export const MOCK_PORTFOLIO: PortfolioSummary = {
   ],
 };
 
-// Re-export engine entry points for direct usage
 export { analyzeStock, getStockAnalysisFromEngine } from "@/lib/stock/analyzer";

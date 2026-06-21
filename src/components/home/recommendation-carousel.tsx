@@ -22,6 +22,11 @@ export function RecommendationCarousel({
         <h2 className="text-base font-semibold text-text-primary">AI 今日推薦</h2>
       </div>
 
+      {recommendations.length === 0 ? (
+        <p className="py-6 text-center text-sm text-text-secondary">
+          此市場暫無推薦股票
+        </p>
+      ) : (
       <div className="carousel">
         {recommendations.map((rec) => {
           const signal = BUY_SIGNAL_CONFIG[rec.buySignal];
@@ -74,6 +79,7 @@ export function RecommendationCarousel({
           );
         })}
       </div>
+      )}
     </section>
   );
 }

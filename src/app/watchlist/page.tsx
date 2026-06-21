@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { DEFAULT_WATCHLIST, getStockAnalysis } from "@/data/mock-data";
-import { generateSparkline } from "@/lib/chart-utils";
+import {
+  DEFAULT_WATCHLIST,
+  getStockAnalysis,
+  toWatchlistItem,
+} from "@/data/mock-data";
 import { WatchlistCards } from "@/components/home/watchlist-cards";
 import { SearchBar } from "@/components/home/search-bar";
 import type { WatchlistItem } from "@/types/stock";
@@ -17,28 +20,14 @@ export default function WatchlistPage() {
   const handleAdd = () => {
     const stock = getStockAnalysis(addSymbol.trim());
     if (!stock) {
-      setError("找不到此股票");
+      setError("找不到這檔股票，請確認代號或名稱。");
       return;
     }
     if (watchlist.some((s) => s.symbol === stock.symbol)) {
       setError("已在自選股中");
       return;
     }
-    setWatchlist((prev) => [
-      ...prev,
-      {
-        symbol: stock.symbol,
-        name: stock.name,
-        market: stock.market,
-        price: stock.price,
-        change: stock.change,
-        changePercent: stock.changePercent,
-        currency: stock.currency,
-        aiScore: stock.totalScore,
-        buySignal: stock.buySignal,
-        sparkline: generateSparkline(stock.symbol.charCodeAt(0) * 100, 20, "up"),
-      },
-    ]);
+    setWatchlist((prev) => [...prev, toWatchlistItem(stock)]);
     setAddSymbol("");
     setError("");
     setShowAdd(false);
@@ -59,14 +48,14 @@ export default function WatchlistPage() {
       </header>
 
       {showAdd && (
-        <div className="glass-card rounded-2xl p-4 space-y-3">
+        <div className="glass-card space-y-3 rounded-2xl p-4">
           <input
             value={addSymbol}
             onChange={(e) => {
-              setAddSymbol(e.target.value.toUpperCase());
+              setAddSymbol(e.target.value);
               setError("");
             }}
-            placeholder="輸入股票代號"
+            placeholder="輸入代號或名稱"
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             className="h-11 w-full rounded-xl bg-bg-card-secondary px-4 text-sm text-text-primary outline-none ring-1 ring-white/[0.06] focus:ring-brand/30"
           />
@@ -81,7 +70,7 @@ export default function WatchlistPage() {
         </div>
       )}
 
-      <SearchBar placeholder="搜尋自選股..." />
+      <SearchBar placeholder="搜尋代號或名稱..." />
 
       <WatchlistCards items={watchlist} />
     </div>
