@@ -9,7 +9,7 @@ const navItems = [
   { href: "/", label: "首頁", icon: Home },
   { href: "/analysis", label: "分析", icon: LineChart },
   { href: "/watchlist", label: "自選股", icon: Star },
-  { href: "/portfolio", label: "投資組合", icon: BarChart3 },
+  { href: "/portfolio", label: "持股", icon: BarChart3 },
   { href: "/profile", label: "我的", icon: User },
 ];
 
@@ -31,12 +31,12 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5",
+                "bottom-nav__item",
                 isActive ? "text-brand" : "text-text-secondary"
               )}
             >
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className="text-[9px] font-medium leading-none">{item.label}</span>
+              <Icon className="bottom-nav__icon" strokeWidth={isActive ? 2.2 : 1.8} />
+              <span className="bottom-nav__label">{item.label}</span>
             </Link>
           );
         })}
