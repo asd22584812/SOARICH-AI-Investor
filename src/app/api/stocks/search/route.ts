@@ -22,13 +22,19 @@ export async function GET(request: NextRequest) {
       market === "TW" || market === "US" ? market : undefined
     );
 
+    if (results.length === 0) {
+      return NextResponse.json([]);
+    }
+
     const enriched = await Promise.all(
       results.slice(0, 8).map(async (item) => {
         try {
           const quote = await fetchYahooQuote(item.yahooSymbol);
+          const name =
+            quote.shortName ?? quote.longName ?? item.name ?? item.symbol;
           return {
             symbol: item.symbol,
-            name: item.name,
+            name,
             market: item.market,
             yahooSymbol: item.yahooSymbol,
             price: quote.regularMarketPrice ?? null,

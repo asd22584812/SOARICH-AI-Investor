@@ -48,6 +48,20 @@ export interface YahooStockSnapshot {
   industry: string | null;
 }
 
+export interface YahooSearchResult {
+  symbol: string;
+  name: string;
+  market: Market;
+  yahooSymbol: string;
+}
+
+const SEARCHABLE_QUOTE_TYPES = new Set([
+  "EQUITY",
+  "ETF",
+  "MUTUALFUND",
+  "INDEX",
+]);
+
 function cleanQuery(query: string): string {
   return query.trim();
 }
@@ -89,9 +103,9 @@ export function normalizeTicker(query: string): NormalizedTicker | null {
   const upper = trimmed.toUpperCase();
   return {
     query: trimmed,
-    displaySymbol: upper,
+    displaySymbol: upper.replace(/\.(TW|TWO)$/i, ""),
     yahooSymbols: [upper],
-    market: "US",
+    market: /\.(TW|TWO)$/i.test(upper) ? "TW" : "US",
   };
 }
 
@@ -105,7 +119,7 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
-function inferMarketFromSymbol(
+export function inferMarketFromSymbol(
   yahooSymbol: string,
   currency?: string
 ): Market {
@@ -117,6 +131,17 @@ function inferMarketFromSymbol(
 function inferCurrency(market: Market, currency?: string): "TWD" | "USD" {
   if (currency === "TWD" || market === "TW") return "TWD";
   return "USD";
+}
+
+function displaySymbolFromYahoo(
+  yahooSymbol: string,
+  market: Market,
+  fallback: string
+): string {
+  if (market === "TW") {
+    return yahooSymbol.replace(/\.(TW|TWO)$/i, "");
+  }
+  return yahooSymbol.replace(/\.(TW|TWO)$/i, "") || fallback;
 }
 
 export async function fetchYahooQuote(yahooSymbol: string) {
@@ -135,37 +160,50 @@ export async function fetchYahooSummary(yahooSymbol: string) {
   });
 }
 
+async function safeFetchYahooSummary(yahooSymbol: string) {
+  try {
+    return await fetchYahooSummary(yahooSymbol);
+  } catch {
+    return null;
+  }
+}
+
 async function buildSnapshotFromYahoo(
   normalized: NormalizedTicker,
   yahooSymbol: string
 ): Promise<YahooStockSnapshot | null> {
-  const [quote, summary] = await Promise.all([
-    fetchYahooQuote(yahooSymbol),
-    fetchYahooSummary(yahooSymbol),
-  ]);
+  const quote = await fetchYahooQuote(yahooSymbol).catch(() => null);
+  const summary = await safeFetchYahooSummary(yahooSymbol);
 
-  const price = quote?.regularMarketPrice ?? summary.price?.regularMarketPrice;
+  const price =
+    quote?.regularMarketPrice ?? summary?.price?.regularMarketPrice ?? null;
   if (price == null || !Number.isFinite(price)) {
     return null;
   }
 
   const market = inferMarketFromSymbol(
     yahooSymbol,
-    quote?.currency ?? summary.price?.currency
+    quote?.currency ?? summary?.price?.currency
   );
-  const currency = inferCurrency(market, quote?.currency ?? summary.price?.currency);
+  const currency = inferCurrency(
+    market,
+    quote?.currency ?? summary?.price?.currency
+  );
 
-  const sharesOutstanding = toNumber(summary.defaultKeyStatistics?.sharesOutstanding);
-  const totalFreeCashflow = toNumber(summary.financialData?.freeCashflow);
+  const sharesOutstanding = toNumber(
+    summary?.defaultKeyStatistics?.sharesOutstanding
+  );
+  const totalFreeCashflow = toNumber(summary?.financialData?.freeCashflow);
   const freeCashFlowPerShare =
     sharesOutstanding && totalFreeCashflow != null
       ? totalFreeCashflow / sharesOutstanding
       : null;
 
-  const displaySymbol =
-    market === "TW"
-      ? normalized.displaySymbol
-      : (quote?.symbol ?? normalized.displaySymbol).replace(/\.(TW|TWO)$/i, "");
+  const displaySymbol = displaySymbolFromYahoo(
+    quote?.symbol ?? yahooSymbol,
+    market,
+    normalized.displaySymbol
+  );
 
   return {
     displaySymbol,
@@ -173,8 +211,8 @@ async function buildSnapshotFromYahoo(
     name:
       quote?.shortName ??
       quote?.longName ??
-      summary.price?.shortName ??
-      summary.price?.longName ??
+      summary?.price?.shortName ??
+      summary?.price?.longName ??
       displaySymbol,
     market,
     currency,
@@ -183,55 +221,116 @@ async function buildSnapshotFromYahoo(
     changePercent: toNumber(quote?.regularMarketChangePercent),
     eps:
       toNumber(quote?.epsTrailingTwelveMonths) ??
-      toNumber(summary.defaultKeyStatistics?.trailingEps),
+      toNumber(summary?.defaultKeyStatistics?.trailingEps),
     pe:
       toNumber(quote?.trailingPE) ??
-      toNumber(summary.summaryDetail?.trailingPE),
+      toNumber(summary?.summaryDetail?.trailingPE),
     pb:
       toNumber(quote?.priceToBook) ??
-      toNumber(summary.defaultKeyStatistics?.priceToBook),
+      toNumber(summary?.defaultKeyStatistics?.priceToBook),
     marketCap:
       toNumber(quote?.marketCap) ??
-      toNumber(summary.summaryDetail?.marketCap),
-    revenueGrowth: toPercent(summary.financialData?.revenueGrowth),
-    roe: toPercent(summary.financialData?.returnOnEquity),
-    roa: toPercent(summary.financialData?.returnOnAssets),
-    bookValuePerShare: toNumber(summary.defaultKeyStatistics?.bookValue),
+      toNumber(summary?.summaryDetail?.marketCap),
+    revenueGrowth: toPercent(summary?.financialData?.revenueGrowth),
+    roe: toPercent(summary?.financialData?.returnOnEquity),
+    roa: toPercent(summary?.financialData?.returnOnAssets),
+    bookValuePerShare: toNumber(summary?.defaultKeyStatistics?.bookValue),
     freeCashFlowPerShare,
-    grossMargin: toPercent(summary.financialData?.grossMargins),
-    operatingMargin: toPercent(summary.financialData?.operatingMargins),
-    debtToEquity: toNumber(summary.financialData?.debtToEquity),
-    peg: toNumber(summary.defaultKeyStatistics?.pegRatio),
+    grossMargin: toPercent(summary?.financialData?.grossMargins),
+    operatingMargin: toPercent(summary?.financialData?.operatingMargins),
+    debtToEquity: toNumber(summary?.financialData?.debtToEquity),
+    peg: toNumber(summary?.defaultKeyStatistics?.pegRatio),
     industry:
-      (typeof summary.assetProfile?.industryDisp === "string" &&
+      (typeof summary?.assetProfile?.industryDisp === "string" &&
         summary.assetProfile.industryDisp) ||
-      (typeof summary.assetProfile?.sectorDisp === "string" &&
+      (typeof summary?.assetProfile?.sectorDisp === "string" &&
         summary.assetProfile.sectorDisp) ||
       null,
   };
 }
 
-export async function searchStock(query: string): Promise<YahooStockSnapshot | null> {
-  const normalized = normalizeTicker(query);
-  if (!normalized) return null;
+async function tryBuildSnapshot(
+  normalized: NormalizedTicker,
+  yahooSymbol: string
+): Promise<YahooStockSnapshot | null> {
+  try {
+    return await buildSnapshotFromYahoo(normalized, yahooSymbol);
+  } catch {
+    return null;
+  }
+}
 
-  for (const yahooSymbol of normalized.yahooSymbols) {
-    try {
-      const snapshot = await buildSnapshotFromYahoo(normalized, yahooSymbol);
+function isSearchableQuote(item: unknown): boolean {
+  if (!item || typeof item !== "object") return false;
+  const quote = item as {
+    symbol?: string;
+    quoteType?: string;
+    shortname?: string;
+    longname?: string;
+  };
+  if (!quote.symbol) return false;
+  if (!quote.shortname && !quote.longname) return false;
+  if (!quote.quoteType) return true;
+  return SEARCHABLE_QUOTE_TYPES.has(quote.quoteType);
+}
+
+async function findSymbolsViaYahooSearch(
+  query: string,
+  limit = 8
+): Promise<string[]> {
+  try {
+    const results = await yahooFinance.search(query, { quotesCount: 20 });
+    return (results.quotes ?? [])
+      .filter(isSearchableQuote)
+      .map((item) => String((item as { symbol: string }).symbol))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+function normalizedFromYahooSymbol(
+  query: string,
+  yahooSymbol: string
+): NormalizedTicker {
+  const market = inferMarketFromSymbol(yahooSymbol);
+  return {
+    query,
+    displaySymbol: displaySymbolFromYahoo(yahooSymbol, market, yahooSymbol),
+    yahooSymbols: [yahooSymbol],
+    market,
+  };
+}
+
+async function resolveSnapshotFromCandidates(
+  query: string,
+  candidates: NormalizedTicker[]
+): Promise<YahooStockSnapshot | null> {
+  for (const normalized of candidates) {
+    for (const yahooSymbol of normalized.yahooSymbols) {
+      const snapshot = await tryBuildSnapshot(normalized, yahooSymbol);
       if (snapshot) return snapshot;
-    } catch {
-      continue;
     }
+  }
+
+  const searchedSymbols = await findSymbolsViaYahooSearch(query, 5);
+  for (const yahooSymbol of searchedSymbols) {
+    const normalized = normalizedFromYahooSymbol(query, yahooSymbol);
+    const snapshot = await tryBuildSnapshot(normalized, yahooSymbol);
+    if (snapshot) return snapshot;
   }
 
   return null;
 }
 
-export interface YahooSearchResult {
-  symbol: string;
-  name: string;
-  market: Market;
-  yahooSymbol: string;
+export async function searchStock(query: string): Promise<YahooStockSnapshot | null> {
+  const trimmed = cleanQuery(query);
+  if (!trimmed) return null;
+
+  const normalized = normalizeTicker(trimmed);
+  const candidates = normalized ? [normalized] : [];
+
+  return resolveSnapshotFromCandidates(trimmed, candidates);
 }
 
 export async function searchYahooSymbols(
@@ -242,52 +341,50 @@ export async function searchYahooSymbols(
   if (!trimmed) return [];
 
   const normalized = normalizeTicker(trimmed);
+  const directResults: YahooSearchResult[] = [];
+
   if (normalized) {
     for (const yahooSymbol of normalized.yahooSymbols) {
       try {
         const quote = await fetchYahooQuote(yahooSymbol);
-        if (quote?.regularMarketPrice != null) {
-          const resolvedMarket = inferMarketFromSymbol(
-            yahooSymbol,
-            quote.currency
-          );
-          if (market && resolvedMarket !== market) continue;
+        if (quote?.regularMarketPrice == null) continue;
 
-          return [
-            {
-              symbol:
-                resolvedMarket === "TW"
-                  ? normalized.displaySymbol
-                  : (quote.symbol ?? normalized.displaySymbol),
-              name: quote.shortName ?? quote.longName ?? normalized.displaySymbol,
-              market: resolvedMarket,
-              yahooSymbol,
-            },
-          ];
-        }
+        const resolvedMarket = inferMarketFromSymbol(
+          yahooSymbol,
+          quote.currency
+        );
+        if (market && resolvedMarket !== market) continue;
+
+        directResults.push({
+          symbol: displaySymbolFromYahoo(
+            quote.symbol ?? yahooSymbol,
+            resolvedMarket,
+            normalized.displaySymbol
+          ),
+          name:
+            quote.shortName ?? quote.longName ?? normalized.displaySymbol,
+          market: resolvedMarket,
+          yahooSymbol,
+        });
+        break;
       } catch {
         continue;
       }
     }
   }
 
+  if (directResults.length > 0) {
+    return directResults;
+  }
+
   try {
-    const results = await yahooFinance.search(trimmed, { quotesCount: 8 });
-    return (results.quotes ?? [])
-      .filter((item) => item.symbol && (item.shortname || item.longname))
-      .map((item) => {
-        const yahooSymbol = String(item.symbol);
-        const resolvedMarket = inferMarketFromSymbol(
-          yahooSymbol,
-          typeof item.exchDisp === "string" ? item.exchDisp : undefined
-        );
-        const name =
-          (typeof item.shortname === "string" && item.shortname) ||
-          (typeof item.longname === "string" && item.longname) ||
-          yahooSymbol;
+    const searchedSymbols = await findSymbolsViaYahooSearch(trimmed, 12);
+    return searchedSymbols
+      .map((yahooSymbol) => {
+        const resolvedMarket = inferMarketFromSymbol(yahooSymbol);
         return {
-          symbol: yahooSymbol.replace(/\.(TW|TWO)$/i, ""),
-          name,
+          symbol: displaySymbolFromYahoo(yahooSymbol, resolvedMarket, yahooSymbol),
+          name: yahooSymbol,
           market: resolvedMarket,
           yahooSymbol,
         };
