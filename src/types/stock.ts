@@ -73,20 +73,24 @@ export interface AIConclusion {
   summary: string;
 }
 
+export type MaybeNumber = number | null;
+
 export interface FinancialProfile {
   score: number;
-  roe: number;
-  roa: number;
-  grossMargin: number;
-  operatingMargin: number;
-  debtToEquity: number;
-  eps: number;
-  growthRate: number;
-  pe: number;
-  pb: number;
+  roe: MaybeNumber;
+  roa: MaybeNumber;
+  grossMargin: MaybeNumber;
+  operatingMargin: MaybeNumber;
+  debtToEquity: MaybeNumber;
+  eps: MaybeNumber;
+  growthRate: MaybeNumber;
+  pe: MaybeNumber;
+  pb: MaybeNumber;
+  marketCap: MaybeNumber;
 }
 
 export interface StockAnalysis extends StockQuote {
+  industry: string | null;
   aiScore: AIScoreBreakdown;
   totalScore: number;
   buySignal: BuySignal;
@@ -116,7 +120,38 @@ export interface WatchlistItem extends StockQuote {
   sparkline: number[];
 }
 
+export interface PortfolioPosition {
+  id: string;
+  symbol: string;
+  shares: number;
+  avgCost: number;
+}
+
+export interface PortfolioLedger {
+  positions: PortfolioPosition[];
+}
+
+export interface CurrencyTotals {
+  totalAssets: number;
+  totalCost: number;
+  unrealizedPnL: number;
+  returnPercent: number;
+  dailyPnL: number;
+  dailyPnLPercent: number;
+}
+
+export interface ComputedPortfolio {
+  holdings: PortfolioHolding[];
+  totalsByCurrency: Partial<Record<"TWD" | "USD", CurrencyTotals>>;
+  bySymbol: AllocationSlice[];
+  byIndustry: AllocationSlice[];
+  byCountry: AllocationSlice[];
+  displayCurrency: "TWD" | "USD";
+  hasMixedCurrency: boolean;
+}
+
 export interface PortfolioHolding {
+  id: string;
   symbol: string;
   name: string;
   market: Market;
@@ -125,6 +160,10 @@ export interface PortfolioHolding {
   currentPrice: number;
   weight: number;
   returnPercent: number;
+  unrealizedPnL: number;
+  marketValue: number;
+  dailyPnL: number;
+  currency: "TWD" | "USD";
   industry: string;
   country: string;
 }

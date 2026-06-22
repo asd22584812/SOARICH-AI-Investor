@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import type { Market, WatchlistItem } from "@/types/stock";
+import { useEffect, useState } from "react";
+import type { AIRecommendation, Market, WatchlistItem } from "@/types/stock";
+import { WATCHLIST_TICKERS } from "@/data/mock-data";
 import {
-  getDefaultWatchlist,
-  getRecommendations,
-} from "@/data/mock-data";
+  fetchRecommendations,
+  fetchStockAnalysis,
+} from "@/lib/stock/api-client";
+import { toWatchlistItem } from "@/lib/stock/watchlist";
 import { AssetHero } from "@/components/home/asset-hero";
 import { SearchBar } from "@/components/home/search-bar";
 import { RecommendationCarousel } from "@/components/home/recommendation-carousel";
@@ -15,8 +17,49 @@ import { SegmentControl } from "@/components/ui/segment-control";
 
 export default function HomePage() {
   const [market, setMarket] = useState<Market>("US");
-  const [watchlist] = useState<WatchlistItem[]>(getDefaultWatchlist);
-  const recommendations = getRecommendations(market);
+  const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
+  const [loadingWatchlist, setLoadingWatchlist] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoadingRecommendations(true);
+    fetchRecommendations(market)
+      .then((items) => {
+        if (!cancelled) setRecommendations(items);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRecommendations(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [market]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoadingWatchlist(true);
+    Promise.all(WATCHLIST_TICKERS.map((ticker) => fetchStockAnalysis(ticker)))
+      .then((analyses) => {
+        if (cancelled) return;
+        setWatchlist(
+          analyses
+            .filter((item): item is NonNullable<typeof item> => item !== null)
+            .map(toWatchlistItem)
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingWatchlist(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -35,9 +78,21 @@ export default function HomePage() {
         onChange={setMarket}
       />
 
-      <RecommendationCarousel recommendations={recommendations} compact />
+      {loadingRecommendations ? (
+        <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
+          載入 AI 推薦中...
+        </div>
+      ) : (
+        <RecommendationCarousel recommendations={recommendations} compact />
+      )}
 
-      <WatchlistCards items={watchlist} compact />
+      {loadingWatchlist ? (
+        <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
+          載入自選股中...
+        </div>
+      ) : (
+        <WatchlistCards items={watchlist} compact />
+      )}
     </div>
   );
 }

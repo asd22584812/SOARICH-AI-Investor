@@ -9,7 +9,6 @@ interface PerformanceRankingProps {
 
 export function PerformanceRanking({
   holdings,
-  currency,
 }: PerformanceRankingProps) {
   const sorted = [...holdings].sort(
     (a, b) => b.returnPercent - a.returnPercent
@@ -19,18 +18,18 @@ export function PerformanceRanking({
 
   return (
     <div className="space-y-4">
-      <RankingList
-        title="獲利排行"
-        icon={<TrendingUp className="h-4 w-4 text-success" />}
-        holdings={winners}
-        currency={currency}
-      />
+      {winners.length > 0 && (
+        <RankingList
+          title="獲利排行"
+          icon={<TrendingUp className="h-4 w-4 text-success" />}
+          holdings={winners}
+        />
+      )}
       {losers.length > 0 && (
         <RankingList
           title="虧損排行"
           icon={<TrendingDown className="h-4 w-4 text-danger" />}
           holdings={losers}
-          currency={currency}
         />
       )}
     </div>
@@ -41,12 +40,10 @@ function RankingList({
   title,
   icon,
   holdings,
-  currency,
 }: {
   title: string;
   icon: React.ReactNode;
   holdings: PortfolioHolding[];
-  currency: "TWD" | "USD";
 }) {
   return (
     <section className="glass-card rounded-2xl p-5">
@@ -57,10 +54,9 @@ function RankingList({
       <div className="space-y-2">
         {holdings.map((h, i) => {
           const positive = h.returnPercent >= 0;
-          const marketValue = h.shares * h.currentPrice;
           return (
             <div
-              key={h.symbol}
+              key={h.id}
               className="flex items-center gap-3 rounded-xl bg-bg-card-secondary p-3"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-bg-card text-xs font-bold text-text-secondary">
@@ -72,7 +68,7 @@ function RankingList({
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-text-primary">
-                  {formatCurrency(marketValue, currency)}
+                  {formatCurrency(h.marketValue, h.currency)}
                 </p>
                 <p
                   className={cn(

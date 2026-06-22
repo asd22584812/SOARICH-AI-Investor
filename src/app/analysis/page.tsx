@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getStockAnalysis } from "@/data/mock-data";
+import type { StockAnalysis } from "@/types/stock";
+import { fetchStockAnalysis } from "@/lib/stock/api-client";
 import { StockSearchField } from "@/components/home/stock-search-field";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
 import { AIScoreSection } from "@/components/analysis/ai-score-section";
@@ -21,31 +22,72 @@ function AnalysisContent() {
   const initialSymbol = searchParams.get("symbol") ?? "";
   const [symbol, setSymbol] = useState(initialSymbol);
   const [query, setQuery] = useState(initialSymbol);
-  const analysis = query ? getStockAnalysis(query) : null;
+  const [analysis, setAnalysis] = useState<StockAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (initialSymbol) {
-      setSymbol(initialSymbol);
-      const resolved = getStockAnalysis(initialSymbol);
-      setQuery(resolved?.symbol ?? initialSymbol);
-    }
-  }, [initialSymbol]);
-
-  const handleSearch = () => {
-    const trimmed = symbol.trim();
-    if (!trimmed) return;
-
-    const resolved = getStockAnalysis(trimmed);
-    if (resolved) {
-      setQuery(resolved.symbol);
-      router.replace(`/analysis?symbol=${resolved.symbol}`);
+    const loadSymbol = initialSymbol.trim();
+    if (!loadSymbol) {
+      setAnalysis(null);
+      setQuery("");
+      setNotFound(false);
       return;
     }
 
-    setQuery(trimmed);
+    setSymbol(loadSymbol);
+    setQuery(loadSymbol);
+    setLoading(true);
+    setNotFound(false);
+
+    fetchStockAnalysis(loadSymbol)
+      .then((result) => {
+        if (!result) {
+          setAnalysis(null);
+          setNotFound(true);
+          return;
+        }
+        setAnalysis(result);
+        setQuery(result.symbol);
+        setSymbol(result.symbol);
+      })
+      .catch(() => {
+        setAnalysis(null);
+        setNotFound(true);
+      })
+      .finally(() => setLoading(false));
+  }, [initialSymbol]);
+
+  const handleSearch = async () => {
+    const trimmed = symbol.trim();
+    if (!trimmed) return;
+
+    setLoading(true);
+    setNotFound(false);
+
+    try {
+      const result = await fetchStockAnalysis(trimmed);
+      if (!result) {
+        setAnalysis(null);
+        setQuery(trimmed);
+        setNotFound(true);
+        return;
+      }
+
+      setAnalysis(result);
+      setQuery(result.symbol);
+      setSymbol(result.symbol);
+      router.replace(`/analysis?symbol=${encodeURIComponent(result.symbol)}`);
+    } catch {
+      setAnalysis(null);
+      setQuery(trimmed);
+      setNotFound(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!query && !analysis) {
+  if (!query && !analysis && !loading) {
     return (
       <div className="space-y-6">
         <header>
@@ -55,14 +97,26 @@ function AnalysisContent() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-text-secondary">輸入股票代號或名稱開始分析</p>
           <p className="mt-2 text-xs text-text-secondary/60">
-            2330 · 台積電 · NVDA · NVIDIA · AAPL
+            2330 · 台積電 · NVDA · TSLA · AMD · META
           </p>
         </div>
       </div>
     );
   }
 
-  if (query && !analysis) {
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-lg font-semibold text-text-primary">個股分析</h1>
+        </header>
+        <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
+        <div className="py-20 text-center text-text-secondary">載入 Yahoo Finance 資料中...</div>
+      </div>
+    );
+  }
+
+  if ((query || initialSymbol) && !analysis && notFound) {
     return (
       <div className="space-y-6">
         <header>
@@ -123,7 +177,7 @@ function SearchInput({
       value={symbol}
       onChange={setSymbol}
       onSubmit={onSearch}
-      placeholder="2330 / 台積電 / NVDA / NVIDIA"
+      placeholder="2330 / 台積電 / NVDA / TSLA"
     />
   );
 }

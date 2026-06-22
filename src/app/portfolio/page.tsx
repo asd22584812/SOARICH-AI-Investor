@@ -1,81 +1,126 @@
-import { MOCK_PORTFOLIO } from "@/data/mock-data";
-import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+"use client";
+
+import { useState } from "react";
+import { Plus, RefreshCw } from "lucide-react";
+import type { PortfolioHolding, PortfolioPosition } from "@/types/stock";
+import { usePortfolio } from "@/hooks/use-portfolio";
 import { AllocationChart } from "@/components/portfolio/allocation-chart";
+import { HoldingFormDialog } from "@/components/portfolio/holding-form-dialog";
+import { HoldingsList } from "@/components/portfolio/holdings-list";
 import { PerformanceRanking } from "@/components/portfolio/performance-ranking";
+import { PortfolioEmptyState } from "@/components/portfolio/portfolio-empty-state";
+import { PortfolioSummary } from "@/components/portfolio/portfolio-summary";
 
 export default function PortfolioPage() {
-  const p = MOCK_PORTFOLIO;
-  const positiveDaily = p.dailyPnL >= 0;
-  const positiveTotal = p.totalReturn >= 0;
+  const {
+    positions,
+    computed,
+    loading,
+    refreshing,
+    addPosition,
+    updatePosition,
+    removePosition,
+    reload,
+  } = usePortfolio();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<PortfolioPosition | null>(null);
+
+  const openCreate = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (holding: PortfolioHolding) => {
+    setEditing({
+      id: holding.id,
+      symbol: holding.symbol,
+      shares: holding.shares,
+      avgCost: holding.avgCost,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (values: Omit<PortfolioPosition, "id">) => {
+    if (editing) {
+      updatePosition(editing.id, values);
+      return;
+    }
+    addPosition(values);
+  };
+
+  const isEmpty = positions.length === 0;
 
   return (
     <div className="space-y-6">
-      <header>
+      <header className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-text-primary">投資組合</h1>
+        {!isEmpty && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={reload}
+              disabled={refreshing}
+              className="rounded-full bg-bg-card-secondary p-2 text-text-secondary transition-colors hover:text-brand disabled:opacity-50"
+              aria-label="重新整理"
+            >
+              <RefreshCw className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="flex items-center gap-1.5 rounded-full bg-brand/15 px-3.5 py-2 text-xs font-medium text-brand transition-colors hover:bg-brand/25"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              新增持股
+            </button>
+          </div>
+        )}
       </header>
 
-      {/* Hero summary */}
-      <section className="glass-card-elevated rounded-3xl p-5">
-        <p className="text-sm text-text-secondary">總資產</p>
-        <p className="mt-1 text-[2rem] font-semibold tracking-tight text-text-primary">
-          {formatCurrency(p.totalAssets, p.currency)}
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-text-secondary">總報酬</p>
-            <p
-              className={cn(
-                "mt-0.5 text-base font-semibold",
-                positiveTotal ? "text-success" : "text-danger"
-              )}
-            >
-              {positiveTotal ? "+" : ""}
-              {formatCurrency(p.totalReturn, p.currency)}
-            </p>
-            <p
-              className={cn(
-                "text-xs",
-                positiveTotal ? "text-success/80" : "text-danger/80"
-              )}
-            >
-              {formatPercent(p.totalReturnPercent)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-text-secondary">今日損益</p>
-            <p
-              className={cn(
-                "mt-0.5 text-base font-semibold",
-                positiveDaily ? "text-success" : "text-danger"
-              )}
-            >
-              {positiveDaily ? "+" : ""}
-              {formatCurrency(p.dailyPnL, p.currency)}
-            </p>
-            <p
-              className={cn(
-                "text-xs",
-                positiveDaily ? "text-success/80" : "text-danger/80"
-              )}
-            >
-              {formatPercent(p.dailyPnLPercent)}
-            </p>
-          </div>
+      {loading && !isEmpty && (
+        <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-10 text-center text-sm text-text-secondary">
+          載入投資組合與即時股價中...
         </div>
-      </section>
+      )}
 
-      <AllocationChart title="持股比例" data={p.holdings.map((h) => ({
-        name: h.symbol,
-        value: h.weight,
-        color: h.market === "TW" ? "#C8A85D" : "#22C55E",
-      }))} />
+      {isEmpty && <PortfolioEmptyState onAdd={openCreate} />}
 
-      <AllocationChart title="產業比例" data={p.byIndustry} />
+      {!isEmpty && computed && !loading && (
+        <>
+          <PortfolioSummary portfolio={computed} />
 
-      <AllocationChart title="國家比例" data={p.byCountry} />
+          {computed.bySymbol.length > 0 && (
+            <AllocationChart title="持股比例" data={computed.bySymbol} />
+          )}
 
-      <PerformanceRanking holdings={p.holdings} currency={p.currency} />
+          {computed.byIndustry.length > 0 && (
+            <AllocationChart title="產業比例" data={computed.byIndustry} />
+          )}
+
+          {computed.byCountry.length > 0 && (
+            <AllocationChart title="國家比例" data={computed.byCountry} />
+          )}
+
+          <HoldingsList
+            holdings={computed.holdings}
+            onEdit={openEdit}
+            onDelete={removePosition}
+          />
+
+          <PerformanceRanking
+            holdings={computed.holdings}
+            currency={computed.displayCurrency}
+          />
+        </>
+      )}
+
+      <HoldingFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initial={editing}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }

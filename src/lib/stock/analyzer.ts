@@ -169,10 +169,7 @@ function mapBuySignalToUI(signal: StockAnalysisResult["buySignal"]["signal"]): B
   return mapAnalysisSignalToUI(signal);
 }
 
-export function analyzeStock(ticker: string): StockAnalysisResult | null {
-  const stock = getMockStock(ticker);
-  if (!stock) return null;
-
+export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
   const financials = toFinancials(stock);
   const valuation = calculateFairValue(financials, stock.currentPrice);
   const moat = calculateMoatScore(stock);
@@ -180,16 +177,13 @@ export function analyzeStock(ticker: string): StockAnalysisResult | null {
   const growthScore = calculateGrowthScore(stock);
   const managementScore = clampScore(stock.managementScore);
   const buffettScore = calculateBuffettScore(stock, moat.moatScore, financialScore);
-  const valuationScore = clampScore(
-    50 + valuation.marginOfSafety * 1.2
-  );
 
   const totalScore = clampScore(
     moat.moatScore * 0.25 +
       financialScore * 0.25 +
       growthScore * 0.2 +
       managementScore * 0.15 +
-      valuationScore * 0.15
+      clampScore(50 + valuation.marginOfSafety * 1.2) * 0.15
   );
 
   const buySignal = getBuySignalFromScore(totalScore);
@@ -216,8 +210,31 @@ export function analyzeStock(ticker: string): StockAnalysisResult | null {
   };
 }
 
-export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
-  const stock = getMockStock(result.ticker)!;
+export function analyzeStock(ticker: string): StockAnalysisResult | null {
+  const stock = getMockStock(ticker);
+  if (!stock) return null;
+  return analyzeStockInput(stock);
+}
+
+export interface NullableFinancialMetrics {
+  roe: number | null;
+  roa: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  debtToEquity: number | null;
+  eps: number | null;
+  growthRate: number | null;
+  pe: number | null;
+  pb: number | null;
+  marketCap: number | null;
+  industry: string | null;
+}
+
+export function toStockAnalysis(
+  result: StockAnalysisResult,
+  stock: StockInput,
+  metrics?: NullableFinancialMetrics
+): StockAnalysis {
   const moatSummary = buildMoatSummary(result.moat.moatScore, result.name);
   const keyPersonRisk =
     KEY_PERSON_PROFILES[result.ticker] ?? {
@@ -228,16 +245,25 @@ export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
       teamMaturity: "團隊成熟度中等。",
     };
 
+  const roe = metrics?.roe ?? stock.roe;
+  const roa = metrics?.roa ?? stock.roa;
+  const growthRate = metrics?.growthRate ?? stock.growthRate;
+
   const buffett: BuffettScore = {
     score: result.buffettScore,
-    roe: stock.roe,
+    roe: roe ?? 0,
     freeCashFlow: clampScore(
-      (stock.freeCashFlowPerShare / stock.currentPrice) * 100 * 8
+      stock.currentPrice > 0 && stock.freeCashFlowPerShare > 0
+        ? (stock.freeCashFlowPerShare / stock.currentPrice) * 100 * 8
+        : 0
     ),
     debtRatio: clampScore(stock.debtToEquity * 30),
     moat: result.moat.moatScore,
     profitStability: clampScore(result.financialScore * 0.9),
-    summary: `ROE ${stock.roe.toFixed(1)}%、自由現金流穩健，綜合巴菲特式評分 ${result.buffettScore} 分。`,
+    summary:
+      roe != null
+        ? `ROE ${roe.toFixed(1)}%、綜合巴菲特式評分 ${result.buffettScore} 分。`
+        : `綜合巴菲特式評分 ${result.buffettScore} 分。`,
   };
 
   const aiConclusion = buildAIConclusion(stock, result);
@@ -246,6 +272,7 @@ export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
     symbol: result.ticker,
     name: result.name,
     market: result.market,
+    industry: metrics?.industry ?? null,
     price: result.currentPrice,
     change: result.change,
     changePercent: result.changePercent,
@@ -277,18 +304,27 @@ export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
     },
     keyPersonRisk,
     buffett,
-    aiConclusion,
+    aiConclusion: {
+      ...aiConclusion,
+      growthOutlook:
+        growthRate > 0
+          ? aiConclusion.growthOutlook
+          : `${stock.name} 成長率資料暫缺（N/A），建議搭配最新財報確認。`,
+    },
     financialProfile: {
       score: result.financialScore,
-      roe: stock.roe,
-      roa: stock.roa,
-      grossMargin: stock.grossMargin,
-      operatingMargin: stock.operatingMargin,
-      debtToEquity: stock.debtToEquity,
-      eps: stock.eps,
-      growthRate: stock.growthRate,
-      pe: stock.pe,
-      pb: stock.pb,
+      roe: metrics?.roe ?? (stock.roe > 0 ? stock.roe : null),
+      roa: metrics?.roa ?? (stock.roa > 0 ? stock.roa : null),
+      grossMargin: metrics?.grossMargin ?? (stock.grossMargin > 0 ? stock.grossMargin : null),
+      operatingMargin:
+        metrics?.operatingMargin ?? (stock.operatingMargin > 0 ? stock.operatingMargin : null),
+      debtToEquity:
+        metrics?.debtToEquity ?? (stock.debtToEquity > 0 ? stock.debtToEquity : null),
+      eps: metrics?.eps ?? (stock.eps > 0 ? stock.eps : null),
+      growthRate: metrics?.growthRate ?? (stock.growthRate > 0 ? stock.growthRate : null),
+      pe: metrics?.pe ?? (stock.pe > 0 ? stock.pe : null),
+      pb: metrics?.pb ?? (stock.pb > 0 ? stock.pb : null),
+      marketCap: metrics?.marketCap ?? null,
     },
   };
 }
@@ -296,5 +332,7 @@ export function toStockAnalysis(result: StockAnalysisResult): StockAnalysis {
 export function getStockAnalysisFromEngine(ticker: string): StockAnalysis | null {
   const result = analyzeStock(ticker);
   if (!result) return null;
-  return toStockAnalysis(result);
+  const stock = getMockStock(ticker);
+  if (!stock) return null;
+  return toStockAnalysis(result, stock);
 }

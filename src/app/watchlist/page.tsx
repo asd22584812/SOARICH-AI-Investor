@@ -1,24 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import {
-  DEFAULT_WATCHLIST,
-  getStockAnalysis,
-  toWatchlistItem,
-} from "@/data/mock-data";
+import { WATCHLIST_TICKERS } from "@/data/mock-data";
+import { fetchStockAnalysis } from "@/lib/stock/api-client";
+import { toWatchlistItem } from "@/lib/stock/watchlist";
 import { WatchlistCards } from "@/components/home/watchlist-cards";
 import { SearchBar } from "@/components/home/search-bar";
 import type { WatchlistItem } from "@/types/stock";
 
 export default function WatchlistPage() {
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(DEFAULT_WATCHLIST);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [addSymbol, setAddSymbol] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const handleAdd = () => {
-    const stock = getStockAnalysis(addSymbol.trim());
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all(WATCHLIST_TICKERS.map((ticker) => fetchStockAnalysis(ticker)))
+      .then((analyses) => {
+        if (cancelled) return;
+        setWatchlist(
+          analyses
+            .filter((item): item is NonNullable<typeof item> => item !== null)
+            .map(toWatchlistItem)
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAdd = async () => {
+    const trimmed = addSymbol.trim();
+    if (!trimmed) return;
+
+    setError("");
+    const stock = await fetchStockAnalysis(trimmed);
     if (!stock) {
       setError("找不到這檔股票，請確認代號或名稱。");
       return;
@@ -29,7 +53,6 @@ export default function WatchlistPage() {
     }
     setWatchlist((prev) => [...prev, toWatchlistItem(stock)]);
     setAddSymbol("");
-    setError("");
     setShowAdd(false);
   };
 
@@ -72,7 +95,13 @@ export default function WatchlistPage() {
 
       <SearchBar placeholder="搜尋代號或名稱..." />
 
-      <WatchlistCards items={watchlist} />
+      {loading ? (
+        <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
+          載入自選股中...
+        </div>
+      ) : (
+        <WatchlistCards items={watchlist} />
+      )}
     </div>
   );
 }

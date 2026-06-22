@@ -1,4 +1,5 @@
 import type { FinancialProfile } from "@/types/stock";
+import { formatCompactNumber, formatMetric } from "@/lib/utils";
 
 interface FinancialsSectionProps {
   financials: FinancialProfile;
@@ -6,15 +7,46 @@ interface FinancialsSectionProps {
 
 export function FinancialsSection({ financials }: FinancialsSectionProps) {
   const metrics = [
-    { label: "ROE", value: `${financials.roe.toFixed(1)}%` },
-    { label: "ROA", value: `${financials.roa.toFixed(1)}%` },
-    { label: "毛利率", value: `${financials.grossMargin.toFixed(1)}%` },
-    { label: "營業利益率", value: `${financials.operatingMargin.toFixed(1)}%` },
-    { label: "負債權益比", value: financials.debtToEquity.toFixed(2) },
-    { label: "EPS", value: financials.eps.toFixed(2) },
-    { label: "本益比", value: financials.pe.toFixed(1) },
-    { label: "股價淨值比", value: financials.pb.toFixed(1) },
-    { label: "成長率", value: `${financials.growthRate.toFixed(1)}%` },
+    {
+      label: "ROE",
+      value: formatMetric(financials.roe, (v) => `${v.toFixed(1)}%`),
+    },
+    {
+      label: "ROA",
+      value: formatMetric(financials.roa, (v) => `${v.toFixed(1)}%`),
+    },
+    {
+      label: "毛利率",
+      value: formatMetric(financials.grossMargin, (v) => `${v.toFixed(1)}%`),
+    },
+    {
+      label: "營業利益率",
+      value: formatMetric(financials.operatingMargin, (v) => `${v.toFixed(1)}%`),
+    },
+    {
+      label: "負債權益比",
+      value: formatMetric(financials.debtToEquity, (v) => v.toFixed(2)),
+    },
+    {
+      label: "EPS",
+      value: formatMetric(financials.eps, (v) => v.toFixed(2)),
+    },
+    {
+      label: "本益比",
+      value: formatMetric(financials.pe, (v) => v.toFixed(1)),
+    },
+    {
+      label: "股價淨值比",
+      value: formatMetric(financials.pb, (v) => v.toFixed(1)),
+    },
+    {
+      label: "成長率",
+      value: formatMetric(financials.growthRate, (v) => `${v.toFixed(1)}%`),
+    },
+    {
+      label: "市值",
+      value: formatCompactNumber(financials.marketCap),
+    },
   ];
 
   return (

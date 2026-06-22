@@ -18,3 +18,19 @@ export function formatPercent(value: number) {
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;
 }
+
+export function formatMetric(
+  value: number | null | undefined,
+  formatter: (value: number) => string
+): string {
+  if (value == null || Number.isNaN(value)) return "N/A";
+  return formatter(value);
+}
+
+export function formatCompactNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "N/A";
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
