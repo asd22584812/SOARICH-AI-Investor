@@ -17,7 +17,7 @@ export function AIConclusionHero({ analysis }: AIConclusionHeroProps) {
     <section className="analysis-conclusion-card glass-card-elevated rounded-3xl border border-brand/15 p-5">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-brand" />
-        <h2 className="text-base font-semibold text-text-primary">AI 投資結論</h2>
+        <h2 className="text-base font-semibold text-text-primary">SOARICH Rating</h2>
       </div>
 
       <p className="mt-4 text-sm leading-relaxed text-text-primary">

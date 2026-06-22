@@ -109,14 +109,14 @@ const KEY_PERSON_PROFILES: Record<string, KeyPersonRisk> = {
   },
   MSFT: {
     level: "low",
-    ceo: "Satya Nadella — 成功帶領雲端與 AI 轉型。",
+    ceo: "Satya Nadella — 成功帶領雲端與企業服務轉型。",
     founder: "比爾蓋茲已淡出日常營運，制度成熟。",
     succession: "高層接班梯隊完整，治理穩健。",
     teamMaturity: "管理層經驗豐富，跨部門協作成熟。",
   },
   GOOGL: {
     level: "medium",
-    ceo: "Sundar Pichai — 技術背景強，面臨 AI 轉型壓力。",
+    ceo: "Sundar Pichai — 技術背景強，面臨產業轉型壓力。",
     founder: "創辦人已退居二線，影響力間接。",
     succession: "接班規劃不夠透明。",
     teamMaturity: "人才流失為近期隱憂。",
@@ -188,7 +188,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
 
   const buySignal = getBuySignalFromScore(totalScore);
 
-  const aiSummary = `${stock.name}（${stock.ticker}）AI 綜合評分 ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${valuation.marginOfSafety.toFixed(1)}%。`;
+  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${valuation.marginOfSafety.toFixed(1)}%。`;
 
   return {
     ticker: stock.ticker,

@@ -66,3 +66,11 @@ export function toStockQuoteFromSearch(result: StockSearchResult): StockQuote {
     currency: result.currency ?? (result.market === "TW" ? "TWD" : "USD"),
   };
 }
+
+export async function warmTaiwanStockListCache(): Promise<void> {
+  try {
+    await fetch("/api/stocks/tw-list", { cache: "no-store" });
+  } catch {
+    // 預熱失敗不影響搜尋，API 會使用 memory / fallback
+  }
+}

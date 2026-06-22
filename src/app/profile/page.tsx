@@ -1,18 +1,14 @@
 import {
   Bell,
-  Bot,
   ChevronRight,
-  Database,
   Info,
   SlidersHorizontal,
 } from "lucide-react";
 
 const menuItems = [
   { icon: Bell, label: "通知設定" },
-  { icon: Database, label: "資料來源設定" },
-  { icon: Bot, label: "AI 分析設定" },
   { icon: SlidersHorizontal, label: "風險偏好設定" },
-  { icon: Info, label: "關於" },
+  { icon: Info, label: "關於 SOARICH Investor" },
 ];
 
 export default function ProfilePage() {

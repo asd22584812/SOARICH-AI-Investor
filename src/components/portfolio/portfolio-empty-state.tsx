@@ -11,7 +11,7 @@ export function PortfolioEmptyState({ onAdd }: PortfolioEmptyStateProps) {
     <section className="glass-card flex flex-col items-center rounded-3xl px-6 py-16 text-center">
       <p className="text-base font-medium text-text-primary">尚未建立投資組合</p>
       <p className="mt-2 max-w-[260px] text-sm text-text-secondary">
-        新增你的第一筆持股，系統會依 Yahoo Finance 即時股價自動計算資產與配置。
+        新增第一筆持股開始追蹤績效
       </p>
       <button
         type="button"

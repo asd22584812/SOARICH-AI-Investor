@@ -1,25 +1,7 @@
-import type {
-  AssetOverview,
-  WatchlistItem,
-} from "@/types/stock";
-import { generateAssetHistory, generateSparkline } from "@/lib/chart-utils";
+import type { WatchlistItem } from "@/types/stock";
+import { generateSparkline } from "@/lib/chart-utils";
 
 export const WATCHLIST_TICKERS = ["2330", "NVDA", "AAPL"] as const;
-
-export const MOCK_ASSET_OVERVIEW: AssetOverview = {
-  totalAssets: 1285320,
-  dailyPnL: 12530,
-  dailyPnLPercent: 1.25,
-  currency: "TWD",
-};
-
-export function getAssetHistory7D() {
-  return generateAssetHistory(MOCK_ASSET_OVERVIEW.totalAssets, 7, 42);
-}
-
-export function getAssetHistory30D() {
-  return generateAssetHistory(MOCK_ASSET_OVERVIEW.totalAssets, 30, 17);
-}
 
 export { toWatchlistItem } from "@/lib/stock/watchlist";
 

@@ -80,7 +80,7 @@ export default function HomePage() {
 
       {loadingRecommendations ? (
         <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
-          載入 AI 推薦中...
+          載入今日精選中...
         </div>
       ) : (
         <RecommendationCarousel recommendations={recommendations} compact />

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SOARICH Investor",
   applicationName: "SOARICH Investor",
-  description: "AI 驅動的專業股票分析平台 — 台股與美股智能投資助手",
+  description: "SOARICH Investor — 台股與美股專業投資分析平台",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

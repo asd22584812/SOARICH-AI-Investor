@@ -22,7 +22,7 @@ export function BuySignalHero({ signal }: BuySignalHeroProps) {
         {config.label}
       </p>
       <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-text-secondary">
-        依據 AI 綜合評分統一判定（90+ 強烈買入、80+ 適合買入）
+        依據綜合評級統一判定（90+ 強烈買入、80+ 適合買入）
       </p>
     </section>
   );

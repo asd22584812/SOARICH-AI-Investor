@@ -29,7 +29,7 @@ export function SplashScreen({ exiting = false, reducedMotion = false }: SplashS
         />
 
         <h1 className="splash-title">SOARICH Investor</h1>
-        <p className="splash-subtitle">AI-Powered Investment Intelligence</p>
+        <p className="splash-subtitle">Professional Investment Intelligence</p>
 
         <div className="splash-loading" aria-hidden>
           <div className="splash-loading-bar" />

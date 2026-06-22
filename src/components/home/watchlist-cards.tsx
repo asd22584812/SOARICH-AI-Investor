@@ -65,7 +65,7 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="text-right">
-            <p className="text-[10px] text-text-secondary">AI Score</p>
+            <p className="text-[10px] text-text-secondary">綜合評級</p>
             <p className="text-sm font-bold text-brand">{item.aiScore}</p>
           </div>
           <span

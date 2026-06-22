@@ -1,7 +1,7 @@
 {
   "name": "SOARICH Investor",
   "short_name": "SOARICH",
-  "description": "AI 驅動的專業股票分析平台",
+  "description": "SOARICH Investor — 台股與美股專業投資分析平台",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050505",

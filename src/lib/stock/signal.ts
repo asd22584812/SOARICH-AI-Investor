@@ -1,7 +1,7 @@
 import type { BuySignal } from "@/types/stock";
 import type { AnalysisBuySignal, BuySignalResult } from "./types";
 
-/** 首頁推薦最低 AI 綜合評分 */
+/** 首頁精選最低綜合評級 */
 export const RECOMMENDATION_MIN_SCORE = 80;
 
 export function getBuySignalFromScore(totalScore: number): BuySignalResult {

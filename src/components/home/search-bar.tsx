@@ -8,6 +8,7 @@ import {
   fetchStockAnalysis,
   searchStocksApi,
   toStockQuoteFromSearch,
+  warmTaiwanStockListCache,
 } from "@/lib/stock/api-client";
 import { cn } from "@/lib/utils";
 import { StockSearchField } from "./stock-search-field";
@@ -27,6 +28,10 @@ export function SearchBar({
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<StockQuote[]>([]);
+
+  useEffect(() => {
+    void warmTaiwanStockListCache();
+  }, []);
 
   useEffect(() => {
     const trimmed = query.trim();

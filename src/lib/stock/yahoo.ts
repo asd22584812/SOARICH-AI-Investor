@@ -1,20 +1,12 @@
 import YahooFinance from "yahoo-finance2";
 import type { Market } from "./types";
+import {
+  isTaiwanSearchQuery,
+  searchTaiwanStockByNameOrCode,
+  type TaiwanStockMatch,
+} from "./twStockList";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
-
-/** 台股中文名稱 → 代號（可擴充） */
-export const TW_NAME_TO_TICKER: Record<string, string> = {
-  台積電: "2330",
-  鴻海: "2317",
-  聯發科: "2454",
-  台塑: "1301",
-  中鋼: "2002",
-  聯電: "2303",
-  富邦金: "2881",
-  國泰金: "2882",
-  中華電: "2412",
-};
 
 export interface NormalizedTicker {
   query: string;
@@ -86,14 +78,21 @@ function buildTaiwanNormalized(query: string, digits: string): NormalizedTicker 
   };
 }
 
+function buildNormalizedFromTaiwanMatch(
+  query: string,
+  match: TaiwanStockMatch
+): NormalizedTicker {
+  return {
+    query,
+    displaySymbol: match.symbol,
+    yahooSymbols: [match.yahooSymbol],
+    market: "TW",
+  };
+}
+
 export function normalizeTicker(query: string): NormalizedTicker | null {
   const trimmed = cleanQuery(query);
   if (!trimmed) return null;
-
-  const chineseName = TW_NAME_TO_TICKER[trimmed];
-  if (chineseName) {
-    return buildTaiwanNormalized(trimmed, chineseName);
-  }
 
   const twDigits = extractTaiwanDigits(trimmed.toUpperCase());
   if (twDigits) {
@@ -327,10 +326,40 @@ export async function searchStock(query: string): Promise<YahooStockSnapshot | n
   const trimmed = cleanQuery(query);
   if (!trimmed) return null;
 
+  if (isTaiwanSearchQuery(trimmed)) {
+    const matches = await searchTaiwanStockByNameOrCode(trimmed, 1);
+    const best = matches[0];
+    if (best) {
+      const normalized = buildNormalizedFromTaiwanMatch(trimmed, best);
+      const snapshot = await tryBuildSnapshot(normalized, best.yahooSymbol);
+      if (snapshot) return snapshot;
+
+      const alternateSuffix = best.yahooSuffix === ".TW" ? ".TWO" : ".TW";
+      const alternateSymbol = `${best.symbol}${alternateSuffix}`;
+      const alternateSnapshot = await tryBuildSnapshot(
+        {
+          ...normalized,
+          yahooSymbols: [alternateSymbol],
+        },
+        alternateSymbol
+      );
+      if (alternateSnapshot) return alternateSnapshot;
+    }
+  }
+
   const normalized = normalizeTicker(trimmed);
   const candidates = normalized ? [normalized] : [];
 
   return resolveSnapshotFromCandidates(trimmed, candidates);
+}
+
+function taiwanMatchToSearchResult(match: TaiwanStockMatch): YahooSearchResult {
+  return {
+    symbol: match.symbol,
+    name: match.shortName || match.name,
+    market: "TW",
+    yahooSymbol: match.yahooSymbol,
+  };
 }
 
 export async function searchYahooSymbols(
@@ -339,6 +368,13 @@ export async function searchYahooSymbols(
 ): Promise<YahooSearchResult[]> {
   const trimmed = cleanQuery(query);
   if (!trimmed) return [];
+
+  if (isTaiwanSearchQuery(trimmed) && (!market || market === "TW")) {
+    const twMatches = await searchTaiwanStockByNameOrCode(trimmed, 8);
+    if (twMatches.length > 0) {
+      return twMatches.map(taiwanMatchToSearchResult);
+    }
+  }
 
   const normalized = normalizeTicker(trimmed);
   const directResults: YahooSearchResult[] = [];

@@ -19,7 +19,7 @@ export function RecommendationCarousel({
     <section className="w-full max-w-full overflow-hidden">
       <div className={cn("flex items-center gap-2", compact ? "mb-2.5" : "mb-3")}>
         <Sparkles className="h-4 w-4 shrink-0 text-brand" />
-        <h2 className="text-base font-semibold text-text-primary">AI 今日推薦</h2>
+        <h2 className="text-base font-semibold text-text-primary">今日精選</h2>
       </div>
 
       {recommendations.length === 0 ? (
@@ -44,7 +44,7 @@ export function RecommendationCarousel({
                   <p className="text-xs text-text-secondary">{rec.symbol}</p>
                 </div>
                 <div className="shrink-0 rounded-xl bg-brand/10 px-2.5 py-1 text-center">
-                  <p className="text-[10px] text-text-secondary">AI Score</p>
+                  <p className="text-[10px] text-text-secondary">綜合評級</p>
                   <p className="text-base font-bold text-brand">{rec.score}</p>
                 </div>
               </div>

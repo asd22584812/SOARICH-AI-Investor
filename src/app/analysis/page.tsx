@@ -111,7 +111,7 @@ function AnalysisContent() {
           <h1 className="text-lg font-semibold text-text-primary">個股分析</h1>
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
-        <div className="py-20 text-center text-text-secondary">載入 Yahoo Finance 資料中...</div>
+        <div className="py-20 text-center text-text-secondary">載入分析資料中...</div>
       </div>
     );
   }

@@ -13,11 +13,10 @@ export function AIScoreSection({ totalScore, scores }: AIScoreSectionProps) {
   return (
     <section className="glass-card rounded-3xl p-5">
       <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">AI 綜合評分</h2>
-        <span className="text-xs text-text-secondary">SOARICH Engine</span>
+        <h2 className="text-base font-semibold text-text-primary">綜合評級</h2>
       </div>
       <div className="mt-2 flex flex-col items-center">
-        <ScoreGauge score={totalScore} label="綜合評分" />
+        <ScoreGauge score={totalScore} label="綜合評級" />
       </div>
       <div className="mt-6 space-y-3.5">
         {items.map(([key, value]) => (

@@ -1,18 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { MOCK_ASSET_OVERVIEW, getAssetHistory7D, getAssetHistory30D } from "@/data/mock-data";
 import { MiniAreaChart } from "@/components/charts/mini-area-chart";
 import { SegmentControl } from "@/components/ui/segment-control";
+import { usePortfolio } from "@/hooks/use-portfolio";
+import {
+  buildFlatAssetHistory,
+  getPrimaryPortfolioTotals,
+} from "@/lib/portfolio/asset-overview";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 
 export function AssetHero() {
+  const { positions, computed, loading } = usePortfolio();
   const [hidden, setHidden] = useState(false);
   const [period, setPeriod] = useState<"7D" | "30D">("7D");
-  const asset = MOCK_ASSET_OVERVIEW;
-  const positive = asset.dailyPnL >= 0;
-  const chartData = period === "7D" ? getAssetHistory7D() : getAssetHistory30D();
+
+  const isEmpty = positions.length === 0;
+  const totals = computed ? getPrimaryPortfolioTotals(computed) : null;
+  const totalAssets = totals?.totalAssets ?? 0;
+  const dailyPnL = totals?.dailyPnL ?? 0;
+  const dailyPnLPercent = totals?.dailyPnLPercent ?? 0;
+  const currency = totals?.currency ?? "TWD";
+  const positive = dailyPnL >= 0;
+
+  const chartData = useMemo(() => {
+    if (isEmpty || !totals) return [];
+    const days = period === "7D" ? 7 : 30;
+    return buildFlatAssetHistory(totalAssets, days);
+  }, [isEmpty, totals, period, totalAssets]);
 
   return (
     <section className="card-glass w-full rounded-3xl p-5">
@@ -28,7 +45,7 @@ export function AssetHero() {
       </div>
 
       <p className="mt-1 text-[2rem] font-semibold tracking-tight text-text-primary">
-        {hidden ? "•••••••" : formatCurrency(asset.totalAssets, asset.currency)}
+        {hidden ? "•••••••" : formatCurrency(totalAssets, currency)}
       </p>
 
       <div className="mt-2 flex items-center gap-2">
@@ -41,9 +58,28 @@ export function AssetHero() {
         >
           {hidden
             ? "••••"
-            : `${positive ? "+" : ""}${formatCurrency(asset.dailyPnL, asset.currency)} (${formatPercent(asset.dailyPnLPercent)})`}
+            : `${positive ? "+" : ""}${formatCurrency(dailyPnL, currency)} (${formatPercent(dailyPnLPercent)})`}
         </span>
       </div>
+
+      {isEmpty && !loading && (
+        <div className="mt-4 rounded-2xl bg-bg-card-secondary/60 px-4 py-3 text-center">
+          <p className="text-sm font-medium text-text-primary">尚未建立投資組合</p>
+          <p className="mt-1 text-xs text-text-secondary">
+            新增第一筆持股開始追蹤績效
+          </p>
+          <Link
+            href="/portfolio"
+            className="mt-3 inline-block text-xs font-medium text-brand"
+          >
+            前往持股頁
+          </Link>
+        </div>
+      )}
+
+      {loading && positions.length > 0 && (
+        <p className="mt-4 text-center text-xs text-text-secondary">更新資產中...</p>
+      )}
 
       <div className="mt-5">
         <SegmentControl
@@ -55,7 +91,15 @@ export function AssetHero() {
           onChange={setPeriod}
         />
         <div className="mt-3">
-          <MiniAreaChart data={chartData} positive={positive} height={80} />
+          {isEmpty || chartData.length === 0 ? (
+            <div className="flex h-20 items-center justify-center rounded-2xl bg-bg-card-secondary/40">
+              <p className="px-4 text-center text-xs text-text-secondary">
+                新增持股後將開始追蹤績效曲線
+              </p>
+            </div>
+          ) : (
+            <MiniAreaChart data={chartData} positive={positive} height={80} />
+          )}
         </div>
       </div>
     </section>
