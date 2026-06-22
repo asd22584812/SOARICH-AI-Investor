@@ -38,7 +38,7 @@ const TW_SCREEN_TICKERS = [
 
 async function analyzeTicker(ticker: string) {
   const snapshot = await searchStock(ticker);
-  if (!snapshot) return null;
+  if (!snapshot?.normalized) return null;
 
   const stockInput = buildStockInputFromYahoo(snapshot);
   if (!stockInput) return null;
@@ -47,7 +47,7 @@ async function analyzeTicker(ticker: string) {
   return toStockAnalysis(
     result,
     stockInput,
-    snapshotToNullableMetrics(snapshot)
+    snapshotToNullableMetrics(snapshot.normalized)
   );
 }
 
@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
     ).filter((item): item is NonNullable<typeof item> => item !== null);
 
     const recommendations = analyses
-      .filter((analysis) => isHomeRecommendation(analysis.totalScore))
+      .filter((analysis) =>
+        isHomeRecommendation(
+          analysis.totalScore,
+          analysis.totalScore > 0 && analysis.financialProfile.score > 0
+        )
+      )
       .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, 5)
       .map((analysis) => ({

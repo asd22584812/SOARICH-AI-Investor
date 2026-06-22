@@ -1,6 +1,68 @@
 import type { StockInput } from "./types";
+import type { CompanyClassification } from "./normalizer";
 
-export const MOCK_STOCKS: Record<string, StockInput> = {
+const MOCK_DEFAULTS: Omit<
+  StockInput,
+  | "ticker"
+  | "name"
+  | "market"
+  | "currentPrice"
+  | "change"
+  | "changePercent"
+  | "eps"
+  | "bookValuePerShare"
+  | "freeCashFlowPerShare"
+  | "growthRate"
+  | "roe"
+  | "roa"
+  | "grossMargin"
+  | "operatingMargin"
+  | "debtToEquity"
+  | "pe"
+  | "pb"
+  | "peg"
+  | "brandPower"
+  | "technologyBarrier"
+  | "scaleEconomy"
+  | "switchingCost"
+  | "networkEffect"
+  | "managementScore"
+> = {
+  profitMargin: 0,
+  currentRatio: null,
+  fcfMargin: null,
+  marketCap: null,
+  sector: null,
+  industry: null,
+  insufficientData: false,
+  missingCriticalFields: [],
+  companyClassification: "quality_compounder",
+  moatIsEstimate: true,
+  fcfPerShareSource: "reported",
+};
+
+function inferMockClassification(growthRate: number): CompanyClassification {
+  if (growthRate >= 15) return "growth";
+  if (growthRate >= 8) return "quality_compounder";
+  return "value";
+}
+
+type MockStockSeed = Omit<
+  StockInput,
+  | "profitMargin"
+  | "currentRatio"
+  | "fcfMargin"
+  | "marketCap"
+  | "sector"
+  | "industry"
+  | "insufficientData"
+  | "missingCriticalFields"
+  | "companyClassification"
+  | "moatIsEstimate"
+  | "fcfPerShareSource"
+>;
+
+export const MOCK_STOCKS: Record<string, MockStockSeed> = {
   "2330": {
     ticker: "2330",
     name: "台積電",
@@ -187,7 +249,14 @@ export const MOCK_STOCKS: Record<string, StockInput> = {
 
 export function getMockStock(ticker: string): StockInput | null {
   const key = ticker.toUpperCase();
-  return MOCK_STOCKS[key] ?? MOCK_STOCKS[ticker] ?? null;
+  const raw = MOCK_STOCKS[key] ?? MOCK_STOCKS[ticker];
+  if (!raw) return null;
+  return {
+    ...MOCK_DEFAULTS,
+    ...raw,
+    profitMargin: raw.grossMargin * 0.65,
+    companyClassification: inferMockClassification(raw.growthRate),
+  };
 }
 
 export function getAllMockTickers(): string[] {
@@ -195,5 +264,7 @@ export function getAllMockTickers(): string[] {
 }
 
 export function getMockStocksByMarket(market: "TW" | "US"): StockInput[] {
-  return Object.values(MOCK_STOCKS).filter((stock) => stock.market === market);
+  return Object.keys(MOCK_STOCKS)
+    .map((ticker) => getMockStock(ticker))
+    .filter((stock): stock is StockInput => stock != null && stock.market === market);
 }

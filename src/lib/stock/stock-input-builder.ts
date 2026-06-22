@@ -1,5 +1,6 @@
+import type { NormalizedFinancialData } from "./normalizer";
+import { buildMoatFromNormalized } from "./moat";
 import type { StockInput } from "./types";
-import type { YahooStockSnapshot } from "./yahoo";
 
 function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, value));
@@ -9,87 +10,106 @@ function coalesceNumber(value: number | null, fallback = 0): number {
   return value != null && Number.isFinite(value) ? value : fallback;
 }
 
-function estimateMoatFromFundamentals(snapshot: YahooStockSnapshot) {
-  const roe = snapshot.roe ?? 0;
-  const margin = snapshot.operatingMargin ?? snapshot.grossMargin ?? 0;
-  const growth = snapshot.revenueGrowth ?? 0;
-  const marketCap = snapshot.marketCap ?? 0;
-
-  const scaleSignal = marketCap > 0 ? clamp(Math.log10(marketCap) * 12, 40, 98) : 55;
-  const qualitySignal = clamp(roe * 1.2 + margin * 0.6, 35, 98);
-  const growthSignal = clamp(growth * 1.5 + 40, 35, 98);
-
-  return {
-    brandPower: clamp(scaleSignal * 0.55 + qualitySignal * 0.45),
-    technologyBarrier: clamp(qualitySignal * 0.7 + growthSignal * 0.3),
-    scaleEconomy: clamp(scaleSignal),
-    switchingCost: clamp(qualitySignal * 0.65 + scaleSignal * 0.35),
-    networkEffect: clamp(growthSignal * 0.55 + scaleSignal * 0.45),
-  };
+function estimateManagementScore(
+  financialQuality: number,
+  moatScore: number,
+  roe: number | null
+): number {
+  const roeBoost = roe != null ? clamp(roe * 1.2, 0, 30) : 0;
+  return clamp(financialQuality * 0.55 + moatScore * 0.25 + roeBoost);
 }
 
-export function buildStockInputFromYahoo(snapshot: YahooStockSnapshot): StockInput | null {
-  if (snapshot.currentPrice == null) return null;
+export function buildStockInputFromNormalized(
+  data: NormalizedFinancialData
+): StockInput | null {
+  if (data.currentPrice == null || data.currentPrice <= 0) return null;
 
-  const moat = estimateMoatFromFundamentals(snapshot);
+  const moat = buildMoatFromNormalized(data);
+  const roe = data.roe;
+  const roa = data.roa;
+  const operatingMargin = data.operatingMargin ?? 0;
+  const grossMargin = data.grossMargin ?? 0;
+
   const financialQuality = clamp(
-    (snapshot.roe ?? 0) * 0.8 +
-      (snapshot.roa ?? 0) * 1.2 +
-      (snapshot.operatingMargin ?? 0) * 0.5
+    (roe ?? 0) * 0.7 + (roa ?? 0) * 1.1 + operatingMargin * 0.45
   );
-  const managementScore = clamp(
-    financialQuality * 0.6 +
-      moat.brandPower * 0.2 +
-      moat.technologyBarrier * 0.2
+  const managementScore = estimateManagementScore(
+    financialQuality,
+    moat.moatScore,
+    roe
   );
 
-  const growthRate = coalesceNumber(snapshot.revenueGrowth);
-  const eps = coalesceNumber(snapshot.eps);
-  const pe = coalesceNumber(snapshot.pe);
-  const pb = coalesceNumber(snapshot.pb);
-  const peg = coalesceNumber(snapshot.peg);
+  const revenuePerShare = data.revenuePerShare ?? 0;
+  const fcfMargin =
+    revenuePerShare > 0 && data.freeCashFlowPerShare != null
+      ? (data.freeCashFlowPerShare / revenuePerShare) * 100
+      : null;
 
   return {
-    ticker: snapshot.displaySymbol,
-    name: snapshot.name,
-    market: snapshot.market,
-    currentPrice: snapshot.currentPrice,
-    change: coalesceNumber(snapshot.change),
-    changePercent: coalesceNumber(snapshot.changePercent),
-    eps,
-    bookValuePerShare: coalesceNumber(snapshot.bookValuePerShare),
-    freeCashFlowPerShare: coalesceNumber(snapshot.freeCashFlowPerShare),
-    growthRate,
-    roe: coalesceNumber(snapshot.roe),
-    roa: coalesceNumber(snapshot.roa),
-    grossMargin: coalesceNumber(snapshot.grossMargin),
-    operatingMargin: coalesceNumber(snapshot.operatingMargin),
-    debtToEquity: coalesceNumber(snapshot.debtToEquity),
-    pe,
-    pb,
-    peg,
+    ticker: data.displaySymbol,
+    name: data.name,
+    market: data.market,
+    currentPrice: data.currentPrice,
+    change: coalesceNumber(data.change),
+    changePercent: coalesceNumber(data.changePercent),
+    eps: coalesceNumber(data.eps),
+    bookValuePerShare: coalesceNumber(data.bookValuePerShare),
+    freeCashFlowPerShare: coalesceNumber(data.freeCashFlowPerShare),
+    growthRate: coalesceNumber(data.revenueGrowth),
+    roe: coalesceNumber(roe),
+    roa: coalesceNumber(roa),
+    grossMargin: coalesceNumber(grossMargin),
+    operatingMargin: coalesceNumber(operatingMargin),
+    debtToEquity: data.debtToEquity,
+    pe: coalesceNumber(data.pe.value),
+    pb: coalesceNumber(data.pb.value),
+    peg: coalesceNumber(data.peg.value),
+    profitMargin: coalesceNumber(data.profitMargin),
+    currentRatio: data.currentRatio.value,
+    fcfMargin,
+    marketCap: data.marketCap,
+    sector: data.sector,
+    industry: data.industry,
     brandPower: moat.brandPower,
     technologyBarrier: moat.technologyBarrier,
     scaleEconomy: moat.scaleEconomy,
     switchingCost: moat.switchingCost,
     networkEffect: moat.networkEffect,
     managementScore,
+    insufficientData: data.insufficientData,
+    missingCriticalFields: data.missingCriticalFields,
+    companyClassification: data.companyClassification,
+    moatIsEstimate: moat.isEstimate,
+    fcfPerShareSource: data.fcfPerShareSource,
   };
 }
 
-export function snapshotToNullableMetrics(snapshot: YahooStockSnapshot) {
+export function snapshotToNullableMetrics(
+  data: NormalizedFinancialData
+) {
   return {
-    eps: snapshot.eps,
-    pe: snapshot.pe,
-    pb: snapshot.pb,
-    marketCap: snapshot.marketCap,
-    growthRate: snapshot.revenueGrowth,
-    roe: snapshot.roe,
-    roa: snapshot.roa,
-    grossMargin: snapshot.grossMargin,
-    operatingMargin: snapshot.operatingMargin,
-    debtToEquity: snapshot.debtToEquity,
-    peg: snapshot.peg,
-    industry: snapshot.industry,
+    eps: data.eps,
+    pe: data.pe.value,
+    pb: data.pb.value,
+    marketCap: data.marketCap,
+    growthRate: data.revenueGrowth,
+    roe: data.roe,
+    roa: data.roa,
+    grossMargin: data.grossMargin,
+    operatingMargin: data.operatingMargin,
+    debtToEquity: data.debtToEquity,
+    peg: data.peg.value,
+    industry: data.industry ?? data.sector,
+    insufficientData: data.insufficientData,
+    companyClassification: data.companyClassification,
+    radarEligible: !data.insufficientData,
   };
+}
+
+/** @deprecated Use buildStockInputFromNormalized */
+export function buildStockInputFromYahoo(
+  snapshot: import("./yahoo").YahooStockSnapshot
+): StockInput | null {
+  if (!snapshot.normalized) return null;
+  return buildStockInputFromNormalized(snapshot.normalized);
 }

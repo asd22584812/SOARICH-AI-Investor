@@ -16,7 +16,10 @@ import type {
   StockFinancials,
   StockInput,
 } from "./types";
-import { calculateFairValue } from "./valuation";
+import {
+  calculateFairValue,
+  calculateValuationScore,
+} from "./valuation";
 
 function toFinancials(stock: StockInput): StockFinancials {
   return {
@@ -32,6 +35,9 @@ function toFinancials(stock: StockInput): StockFinancials {
     pe: stock.pe,
     pb: stock.pb,
     peg: stock.peg,
+    currentRatio: stock.currentRatio,
+    profitMargin: stock.profitMargin,
+    fcfMargin: stock.fcfMargin,
   };
 }
 
@@ -41,14 +47,41 @@ function clampScore(value: number): number {
 
 function calculateFinancialScore(stock: StockInput): number {
   const roeScore = (Math.min(stock.roe, 30) / 30) * 100;
-  const roaScore = Math.min(stock.roa, 25) * 2.4;
-  const marginScore = stock.operatingMargin * 1.2;
-  const debtPenalty = Math.min(stock.debtToEquity, 2) * 12;
-  return clampScore(roeScore * 0.35 + roaScore * 0.25 + marginScore * 0.3 - debtPenalty);
+  const roaScore = (Math.min(stock.roa, 15) / 15) * 100;
+  const grossMarginScore = (Math.min(stock.grossMargin, 60) / 60) * 100;
+  const marginScore = (Math.min(stock.operatingMargin, 40) / 40) * 100;
+
+  const debtScore =
+    stock.debtToEquity == null
+      ? 55
+      : clampScore(100 - stock.debtToEquity * 35);
+
+  const fcfMarginScore =
+    stock.fcfMargin != null
+      ? clampScore((Math.min(stock.fcfMargin, 35) / 35) * 100)
+      : 55;
+
+  const currentRatioScore =
+    stock.currentRatio != null
+      ? clampScore(Math.min(stock.currentRatio, 3) / 3 * 100)
+      : 55;
+
+  return clampScore(
+    roeScore * 0.28 +
+      roaScore * 0.12 +
+      grossMarginScore * 0.15 +
+      marginScore * 0.2 +
+      debtScore * 0.15 +
+      fcfMarginScore * 0.05 +
+      currentRatioScore * 0.05
+  );
 }
 
 function calculateGrowthScore(stock: StockInput): number {
-  return clampScore(stock.growthRate * 2.8 + stock.grossMargin * 0.35);
+  const growth = Math.max(stock.growthRate, 0);
+  const earningsGrowthBoost =
+    stock.companyClassification === "growth" ? 8 : 0;
+  return clampScore(growth * 2.2 + stock.grossMargin * 0.25 + earningsGrowthBoost);
 }
 
 function calculateBuffettScore(
@@ -57,32 +90,45 @@ function calculateBuffettScore(
   financialScore: number
 ): number {
   const fcfYield =
-    stock.currentPrice > 0
+    stock.currentPrice > 0 && stock.freeCashFlowPerShare > 0
       ? (stock.freeCashFlowPerShare / stock.currentPrice) * 100
       : 0;
-  const debtScore = clampScore(100 - stock.debtToEquity * 25);
-  const profitStability = clampScore(financialScore * 0.85 + stock.operatingMargin);
+  const fcfYieldScore = clampScore(Math.min(fcfYield, 12) / 12 * 100);
+  const roeScore = (Math.min(stock.roe, 30) / 30) * 100;
+  const debtScore =
+    stock.debtToEquity == null
+      ? 55
+      : clampScore(100 - stock.debtToEquity * 35);
+  const profitStability = clampScore(
+    financialScore * 0.45 + Math.min(stock.operatingMargin, 40) * 1.1
+  );
 
   return clampScore(
-    Math.min(stock.roe, 50) * 0.35 +
-      fcfYield * 8 +
-      debtScore * 0.2 +
+    financialScore * 0.35 +
       moatScore * 0.25 +
-      profitStability * 0.2
+      fcfYieldScore * 0.15 +
+      roeScore * 0.1 +
+      debtScore * 0.08 +
+      profitStability * 0.07
   );
 }
 
-function buildMoatSummary(moatScore: number, name: string): string {
+function buildMoatSummary(
+  moatScore: number,
+  name: string,
+  isEstimate: boolean
+): string {
+  const prefix = isEstimate ? "護城河為模型估算：" : "";
   if (moatScore >= 90) {
-    return `${name}具備極強護城河，技術與規模優勢難以複製。`;
+    return `${prefix}${name}具備極強護城河，技術與規模優勢難以複製。`;
   }
   if (moatScore >= 75) {
-    return `${name}擁有穩固競爭優勢，長期市場地位相對穩健。`;
+    return `${prefix}${name}擁有穩固競爭優勢，長期市場地位相對穩健。`;
   }
   if (moatScore >= 60) {
-    return `${name}具備一定護城河，但產業競爭仍帶來壓力。`;
+    return `${prefix}${name}具備一定護城河，但產業競爭仍帶來壓力。`;
   }
-  return `${name}護城河有限，需持續觀察競爭態勢變化。`;
+  return `${prefix}${name}護城河有限，需持續觀察競爭態勢變化。`;
 }
 
 const KEY_PERSON_PROFILES: Record<string, KeyPersonRisk> = {
@@ -149,18 +195,24 @@ function buildAIConclusion(
 
   return {
     isUndervalued,
-    suitableForDCA: result.totalScore >= 80,
+    suitableForDCA: result.totalScore >= 80 && !result.insufficientData,
     undervaluedPercent,
-    highlights: [
-      result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
-      result.growthScore >= 70 ? "未來三年成長性佳" : "成長動能中等",
-      isUndervalued ? "可考慮分批布局" : "建議等待更好價位",
-    ],
+    highlights: result.insufficientData
+      ? ["關鍵財務資料不足", "建議參考最新財報", "暫不納入精選雷達"]
+      : [
+          result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
+          result.growthScore >= 70 ? "成長動能佳" : "成長動能中等",
+          isUndervalued ? "估值具吸引力" : "建議等待更好價位",
+        ],
     mainRisks: [
       stock.market === "TW" ? "地緣政治與匯率" : "總體經濟與利率",
-      stock.debtToEquity > 1 ? "負債壓力偏高" : "產業競爭加劇",
+      stock.debtToEquity != null && stock.debtToEquity > 1.2
+        ? "負債壓力偏高"
+        : "產業競爭加劇",
     ],
-    growthOutlook: `${stock.name} 預估年化成長率約 ${stock.growthRate}%，${stock.growthRate >= 15 ? "中長期成長動能仍強" : "成長趨於穩健"}。`,
+    growthOutlook: result.insufficientData
+      ? `${stock.name} 關鍵財務資料不足，暫無法提供完整成長展望。`
+      : `${stock.name} 預估年化成長率約 ${stock.growthRate.toFixed(1)}%，${stock.growthRate >= 15 ? "中長期成長動能仍強" : "成長趨於穩健"}。`,
     summary: result.aiSummary,
   };
 }
@@ -170,20 +222,72 @@ function mapBuySignalToUI(signal: StockAnalysisResult["buySignal"]["signal"]): B
 }
 
 export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
+  if (stock.insufficientData) {
+    const moat = calculateMoatScore(stock);
+    return {
+      ticker: stock.ticker,
+      name: stock.name,
+      market: stock.market,
+      currentPrice: stock.currentPrice,
+      currency: stock.market === "TW" ? "TWD" : "USD",
+      change: stock.change,
+      changePercent: stock.changePercent,
+      valuation: {
+        dcfValue: 0,
+        peValue: 0,
+        pegValue: 0,
+        pbValue: 0,
+        fcfMultipleValue: 0,
+        fairValue: stock.currentPrice,
+        safetyPrice: stock.currentPrice,
+        bullCasePrice: stock.currentPrice,
+        marginOfSafety: 0,
+        companyClassification: "insufficient_data",
+        weights: {
+          dcf: 0,
+          pe: 0,
+          peg: 0,
+          pb: 0,
+          fcfMultiple: 0,
+          roeQuality: 0,
+          dividendBook: 0,
+        },
+      },
+      buySignal: getBuySignalFromScore(0),
+      moat,
+      financialScore: 0,
+      growthScore: 0,
+      managementScore: 0,
+      buffettScore: 0,
+      valuationScore: 0,
+      totalScore: 0,
+      aiSummary: `${stock.name}（${stock.ticker}）資料不足，暫不評級。`,
+      insufficientData: true,
+      moatIsEstimate: stock.moatIsEstimate,
+      companyClassification: "insufficient_data",
+      radarEligible: false,
+    };
+  }
+
   const financials = toFinancials(stock);
-  const valuation = calculateFairValue(financials, stock.currentPrice);
+  const valuation = calculateFairValue(
+    financials,
+    stock.currentPrice,
+    stock.companyClassification
+  );
   const moat = calculateMoatScore(stock);
   const financialScore = calculateFinancialScore(stock);
   const growthScore = calculateGrowthScore(stock);
   const managementScore = clampScore(stock.managementScore);
   const buffettScore = calculateBuffettScore(stock, moat.moatScore, financialScore);
+  const valuationScore = calculateValuationScore(valuation.marginOfSafety);
 
   const totalScore = clampScore(
     moat.moatScore * 0.25 +
       financialScore * 0.25 +
       growthScore * 0.2 +
-      managementScore * 0.15 +
-      clampScore(50 + valuation.marginOfSafety * 1.2) * 0.15
+      managementScore * 0.1 +
+      valuationScore * 0.2
   );
 
   const buySignal = getBuySignalFromScore(totalScore);
@@ -205,8 +309,13 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     growthScore,
     managementScore,
     buffettScore,
+    valuationScore,
     totalScore,
     aiSummary,
+    insufficientData: false,
+    moatIsEstimate: stock.moatIsEstimate,
+    companyClassification: stock.companyClassification,
+    radarEligible: totalScore >= 80,
   };
 }
 
@@ -228,6 +337,8 @@ export interface NullableFinancialMetrics {
   pb: number | null;
   marketCap: number | null;
   industry: string | null;
+  insufficientData?: boolean;
+  radarEligible?: boolean;
 }
 
 export function toStockAnalysis(
@@ -235,7 +346,11 @@ export function toStockAnalysis(
   stock: StockInput,
   metrics?: NullableFinancialMetrics
 ): StockAnalysis {
-  const moatSummary = buildMoatSummary(result.moat.moatScore, result.name);
+  const moatSummary = buildMoatSummary(
+    result.moat.moatScore,
+    result.name,
+    result.moatIsEstimate
+  );
   const keyPersonRisk =
     KEY_PERSON_PROFILES[result.ticker] ?? {
       level: "medium" as const,
@@ -257,11 +372,13 @@ export function toStockAnalysis(
         ? (stock.freeCashFlowPerShare / stock.currentPrice) * 100 * 8
         : 0
     ),
-    debtRatio: clampScore(stock.debtToEquity * 30),
+    debtRatio:
+      stock.debtToEquity != null ? clampScore(stock.debtToEquity * 30) : 0,
     moat: result.moat.moatScore,
     profitStability: clampScore(result.financialScore * 0.9),
-    summary:
-      roe != null
+    summary: result.insufficientData
+      ? "資料不足，暫無法提供完整巴菲特式評分。"
+      : roe != null
         ? `ROE ${roe.toFixed(1)}%、綜合巴菲特式評分 ${result.buffettScore} 分。`
         : `綜合巴菲特式評分 ${result.buffettScore} 分。`,
   };
@@ -278,13 +395,15 @@ export function toStockAnalysis(
     changePercent: result.changePercent,
     currency: result.currency,
     totalScore: result.totalScore,
-    buySignal: mapBuySignalToUI(result.buySignal.signal),
+    buySignal: result.insufficientData
+      ? "avoid"
+      : mapBuySignalToUI(result.buySignal.signal),
     aiScore: {
       moat: result.moat.moatScore,
       financials: result.financialScore,
       growth: result.growthScore,
       management: result.managementScore,
-      valuation: clampScore(50 + result.valuation.marginOfSafety * 1.2),
+      valuation: result.valuationScore,
     },
     valuation: {
       safetyPrice: result.valuation.safetyPrice,
@@ -306,25 +425,28 @@ export function toStockAnalysis(
     buffett,
     aiConclusion: {
       ...aiConclusion,
-      growthOutlook:
-        growthRate > 0
+      growthOutlook: result.insufficientData
+        ? `${stock.name} 資料不足，暫不評級。`
+        : growthRate > 0
           ? aiConclusion.growthOutlook
           : `${stock.name} 成長率資料暫缺（N/A），建議搭配最新財報確認。`,
+      summary: result.aiSummary,
     },
     financialProfile: {
       score: result.financialScore,
       roe: metrics?.roe ?? (stock.roe > 0 ? stock.roe : null),
       roa: metrics?.roa ?? (stock.roa > 0 ? stock.roa : null),
-      grossMargin: metrics?.grossMargin ?? (stock.grossMargin > 0 ? stock.grossMargin : null),
+      grossMargin:
+        metrics?.grossMargin ?? (stock.grossMargin > 0 ? stock.grossMargin : null),
       operatingMargin:
-        metrics?.operatingMargin ?? (stock.operatingMargin > 0 ? stock.operatingMargin : null),
-      debtToEquity:
-        metrics?.debtToEquity ?? (stock.debtToEquity > 0 ? stock.debtToEquity : null),
+        metrics?.operatingMargin ??
+        (stock.operatingMargin > 0 ? stock.operatingMargin : null),
+      debtToEquity: metrics?.debtToEquity ?? stock.debtToEquity,
       eps: metrics?.eps ?? (stock.eps > 0 ? stock.eps : null),
       growthRate: metrics?.growthRate ?? (stock.growthRate > 0 ? stock.growthRate : null),
       pe: metrics?.pe ?? (stock.pe > 0 ? stock.pe : null),
       pb: metrics?.pb ?? (stock.pb > 0 ? stock.pb : null),
-      marketCap: metrics?.marketCap ?? null,
+      marketCap: metrics?.marketCap ?? stock.marketCap,
     },
   };
 }

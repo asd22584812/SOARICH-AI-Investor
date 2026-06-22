@@ -1,3 +1,4 @@
+export type { CompanyClassification } from "./normalizer";
 export type Market = "TW" | "US";
 
 export interface StockFinancials {
@@ -9,10 +10,13 @@ export interface StockFinancials {
   roa: number;
   grossMargin: number;
   operatingMargin: number;
-  debtToEquity: number;
+  debtToEquity: number | null;
   pe: number;
   pb: number;
   peg: number;
+  currentRatio: number | null;
+  profitMargin: number;
+  fcfMargin: number | null;
 }
 
 export interface StockInput {
@@ -30,16 +34,27 @@ export interface StockInput {
   roa: number;
   grossMargin: number;
   operatingMargin: number;
-  debtToEquity: number;
+  debtToEquity: number | null;
   pe: number;
   pb: number;
   peg: number;
+  profitMargin: number;
+  currentRatio: number | null;
+  fcfMargin: number | null;
+  marketCap: number | null;
+  sector: string | null;
+  industry: string | null;
   brandPower: number;
   technologyBarrier: number;
   scaleEconomy: number;
   switchingCost: number;
   networkEffect: number;
   managementScore: number;
+  insufficientData: boolean;
+  missingCriticalFields: string[];
+  companyClassification: import("./normalizer").CompanyClassification;
+  moatIsEstimate: boolean;
+  fcfPerShareSource: import("./normalizer").FcfPerShareSource;
 }
 
 export interface ValuationResult {
@@ -47,11 +62,13 @@ export interface ValuationResult {
   peValue: number;
   pegValue: number;
   pbValue: number;
+  fcfMultipleValue: number;
   fairValue: number;
   safetyPrice: number;
   bullCasePrice: number;
   marginOfSafety: number;
-  companyType: "growth" | "value";
+  companyClassification: import("./normalizer").CompanyClassification;
+  weights: import("./valuation").ValuationWeights;
 }
 
 export interface MoatScore {
@@ -90,6 +107,11 @@ export interface StockAnalysisResult {
   growthScore: number;
   managementScore: number;
   buffettScore: number;
+  valuationScore: number;
   totalScore: number;
   aiSummary: string;
+  insufficientData: boolean;
+  moatIsEstimate: boolean;
+  companyClassification: import("./normalizer").CompanyClassification;
+  radarEligible: boolean;
 }

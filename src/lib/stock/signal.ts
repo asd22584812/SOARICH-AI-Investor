@@ -8,10 +8,10 @@ export function getBuySignalFromScore(totalScore: number): BuySignalResult {
   const score = Math.max(0, Math.min(100, Math.round(totalScore)));
 
   if (score >= 90) {
-    return { signal: "STRONG_BUY", label: "強烈買入" };
+    return { signal: "STRONG_BUY", label: "強烈關注" };
   }
   if (score >= 80) {
-    return { signal: "BUY", label: "適合買入" };
+    return { signal: "BUY", label: "值得研究" };
   }
   if (score >= 70) {
     return { signal: "WATCH", label: "觀察" };
@@ -37,8 +37,11 @@ export function mapAnalysisSignalToUI(signal: AnalysisBuySignal): BuySignal {
   }
 }
 
-export function isHomeRecommendation(totalScore: number): boolean {
-  return totalScore >= RECOMMENDATION_MIN_SCORE;
+export function isHomeRecommendation(
+  totalScore: number,
+  radarEligible = true
+): boolean {
+  return radarEligible && totalScore >= RECOMMENDATION_MIN_SCORE;
 }
 
 export function isHomeRecommendationSignal(signal: BuySignal): boolean {

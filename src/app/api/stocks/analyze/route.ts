@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
     const analysis = toStockAnalysis(
       result,
       stockInput,
-      snapshotToNullableMetrics(snapshot)
+      snapshot.normalized
+        ? snapshotToNullableMetrics(snapshot.normalized)
+        : undefined
     );
 
     return NextResponse.json(analysis);

@@ -5,6 +5,13 @@ import {
   searchTaiwanStockByNameOrCode,
   type TaiwanStockMatch,
 } from "./twStockList";
+import { applyCompanyClassification } from "./company-classification";
+import {
+  normalizeFinancials,
+  type NormalizedFinancialData,
+  type YahooQuoteLike,
+  type YahooSummaryLike,
+} from "./normalizer";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -38,6 +45,7 @@ export interface YahooStockSnapshot {
   debtToEquity: number | null;
   peg: number | null;
   industry: string | null;
+  normalized: NormalizedFinancialData;
 }
 
 export interface YahooSearchResult {
@@ -108,14 +116,53 @@ export function normalizeTicker(query: string): NormalizedTicker | null {
   };
 }
 
-function toPercent(value: number | null | undefined): number | null {
-  if (value == null || Number.isNaN(value)) return null;
-  return Math.abs(value) <= 1 ? value * 100 : value;
-}
-
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return null;
+}
+
+function mapNormalizedToSnapshot(
+  data: NormalizedFinancialData
+): YahooStockSnapshot {
+  return {
+    displaySymbol: data.displaySymbol,
+    yahooSymbol: data.yahooSymbol,
+    name: data.name,
+    market: data.market,
+    currency: data.currency,
+    currentPrice: data.currentPrice,
+    change: data.change,
+    changePercent: data.changePercent,
+    eps: data.eps,
+    pe: data.pe.value,
+    pb: data.pb.value,
+    marketCap: data.marketCap,
+    revenueGrowth: data.revenueGrowth,
+    roe: data.roe,
+    roa: data.roa,
+    bookValuePerShare: data.bookValuePerShare,
+    freeCashFlowPerShare: data.freeCashFlowPerShare,
+    grossMargin: data.grossMargin,
+    operatingMargin: data.operatingMargin,
+    debtToEquity: data.debtToEquity,
+    peg: data.peg.value,
+    industry: data.industry ?? data.sector,
+    normalized: data,
+  };
+}
+
+async function resolveTwDisplayName(
+  symbol: string,
+  fallbackName: string
+): Promise<string> {
+  try {
+    const match = await searchTaiwanStockByNameOrCode(symbol, 1);
+    const best = match.find((item) => item.symbol === symbol) ?? match[0];
+    if (best) return best.shortName || best.name;
+  } catch {
+    // ignore
+  }
+  return fallbackName;
 }
 
 export function inferMarketFromSymbol(
@@ -189,63 +236,37 @@ async function buildSnapshotFromYahoo(
     quote?.currency ?? summary?.price?.currency
   );
 
-  const sharesOutstanding = toNumber(
-    summary?.defaultKeyStatistics?.sharesOutstanding
-  );
-  const totalFreeCashflow = toNumber(summary?.financialData?.freeCashflow);
-  const freeCashFlowPerShare =
-    sharesOutstanding && totalFreeCashflow != null
-      ? totalFreeCashflow / sharesOutstanding
-      : null;
-
   const displaySymbol = displaySymbolFromYahoo(
     quote?.symbol ?? yahooSymbol,
     market,
     normalized.displaySymbol
   );
 
-  return {
-    displaySymbol,
-    yahooSymbol,
-    name:
-      quote?.shortName ??
-      quote?.longName ??
-      summary?.price?.shortName ??
-      summary?.price?.longName ??
+  const rawName =
+    quote?.shortName ??
+    quote?.longName ??
+    summary?.price?.shortName ??
+    summary?.price?.longName ??
+    displaySymbol;
+
+  const resolvedName =
+    market === "TW"
+      ? await resolveTwDisplayName(displaySymbol, rawName)
+      : rawName;
+
+  const normalizedFinancials = applyCompanyClassification(
+    normalizeFinancials({
+      quote: quote as YahooQuoteLike,
+      summary: summary as YahooSummaryLike,
       displaySymbol,
-    market,
-    currency,
-    currentPrice: price,
-    change: toNumber(quote?.regularMarketChange),
-    changePercent: toNumber(quote?.regularMarketChangePercent),
-    eps:
-      toNumber(quote?.epsTrailingTwelveMonths) ??
-      toNumber(summary?.defaultKeyStatistics?.trailingEps),
-    pe:
-      toNumber(quote?.trailingPE) ??
-      toNumber(summary?.summaryDetail?.trailingPE),
-    pb:
-      toNumber(quote?.priceToBook) ??
-      toNumber(summary?.defaultKeyStatistics?.priceToBook),
-    marketCap:
-      toNumber(quote?.marketCap) ??
-      toNumber(summary?.summaryDetail?.marketCap),
-    revenueGrowth: toPercent(summary?.financialData?.revenueGrowth),
-    roe: toPercent(summary?.financialData?.returnOnEquity),
-    roa: toPercent(summary?.financialData?.returnOnAssets),
-    bookValuePerShare: toNumber(summary?.defaultKeyStatistics?.bookValue),
-    freeCashFlowPerShare,
-    grossMargin: toPercent(summary?.financialData?.grossMargins),
-    operatingMargin: toPercent(summary?.financialData?.operatingMargins),
-    debtToEquity: toNumber(summary?.financialData?.debtToEquity),
-    peg: toNumber(summary?.defaultKeyStatistics?.pegRatio),
-    industry:
-      (typeof summary?.assetProfile?.industryDisp === "string" &&
-        summary.assetProfile.industryDisp) ||
-      (typeof summary?.assetProfile?.sectorDisp === "string" &&
-        summary.assetProfile.sectorDisp) ||
-      null,
-  };
+      yahooSymbol,
+      market,
+      currency,
+      name: resolvedName,
+    })
+  );
+
+  return mapNormalizedToSnapshot(normalizedFinancials);
 }
 
 async function tryBuildSnapshot(
