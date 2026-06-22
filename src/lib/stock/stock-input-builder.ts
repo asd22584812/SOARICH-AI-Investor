@@ -81,6 +81,9 @@ export function buildStockInputFromNormalized(
     companyClassification: data.companyClassification,
     moatIsEstimate: moat.isEstimate,
     fcfPerShareSource: data.fcfPerShareSource,
+    debtToEquityUncertain: data.debtToEquityUncertain,
+    peUnreliable: data.pe.unreliable,
+    peHighRisk: data.pe.highRisk ?? false,
   };
 }
 

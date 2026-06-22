@@ -17,6 +17,21 @@ export type FcfPerShareSource =
 export interface NormalizedRatio {
   value: number | null;
   unreliable: boolean;
+  highRisk?: boolean;
+}
+
+export interface NormalizedDebtToEquity {
+  value: number | null;
+  uncertain: boolean;
+  raw: number | null;
+}
+
+export interface ClassificationScores {
+  growthScore: number;
+  qualityScore: number;
+  valueScore: number;
+  financialScore: number;
+  cyclicalScore: number;
 }
 
 export interface NormalizedFinancialData {
@@ -52,12 +67,16 @@ export interface NormalizedFinancialData {
   earningsGrowth: number | null;
   fcfGrowth: number | null;
   debtToEquity: number | null;
+  rawDebtToEquity: number | null;
+  debtToEquityUncertain: boolean;
   marketCap: number | null;
   sharesOutstanding: number | null;
   fcfPerShareSource: FcfPerShareSource;
   insufficientData: boolean;
   missingCriticalFields: string[];
   companyClassification: CompanyClassification;
+  classificationScores?: ClassificationScores;
+  classificationReasons?: string[];
 }
 
 const CRITICAL_FIELDS = [
@@ -100,12 +119,21 @@ export function normalizeRatioField(
   return { value: numeric, unreliable: false };
 }
 
-export function normalizeDebtToEquity(value: unknown): number | null {
-  const numeric = toFiniteNumber(value);
-  if (numeric == null) return null;
-  if (numeric > 20) return numeric / 100;
-  if (numeric > 1) return numeric / 100;
-  return numeric;
+export function normalizeDebtToEquity(value: unknown): NormalizedDebtToEquity {
+  const raw = toFiniteNumber(value);
+  if (raw == null || raw <= 0) {
+    return { value: null, uncertain: false, raw };
+  }
+  if (raw > 100) {
+    return { value: raw / 100, uncertain: false, raw };
+  }
+  if (raw > 20) {
+    return { value: raw / 100, uncertain: false, raw };
+  }
+  if (raw > 5) {
+    return { value: raw / 100, uncertain: true, raw };
+  }
+  return { value: raw, uncertain: false, raw };
 }
 
 function resolveFcfPerShare(input: {
@@ -274,6 +302,8 @@ export function normalizeYahooSummary(
       toFiniteNumber(summary?.defaultKeyStatistics?.forwardEps),
   });
 
+  const debtNormalized = normalizeDebtToEquity(summary?.financialData?.debtToEquity);
+
   return {
     name:
       summary?.price?.shortName ??
@@ -322,7 +352,9 @@ export function normalizeYahooSummary(
     revenueGrowth: normalizePercentField(summary?.financialData?.revenueGrowth),
     earningsGrowth: normalizePercentField(summary?.financialData?.earningsGrowth),
     fcfGrowth: normalizePercentField(summary?.financialData?.freeCashflowGrowth),
-    debtToEquity: normalizeDebtToEquity(summary?.financialData?.debtToEquity),
+    debtToEquity: debtNormalized.value,
+    rawDebtToEquity: debtNormalized.raw,
+    debtToEquityUncertain: debtNormalized.uncertain,
     marketCap: toFiniteNumber(summary?.summaryDetail?.marketCap),
     sharesOutstanding,
     fcfPerShareSource: fcfResolved.source,
@@ -387,6 +419,8 @@ export function normalizeFinancials(input: {
     earningsGrowth: fromSummary.earningsGrowth,
     fcfGrowth: fromSummary.fcfGrowth,
     debtToEquity: fromSummary.debtToEquity,
+    rawDebtToEquity: fromSummary.rawDebtToEquity,
+    debtToEquityUncertain: fromSummary.debtToEquityUncertain,
     marketCap,
     sharesOutstanding: fromSummary.sharesOutstanding,
     fcfPerShareSource: fromSummary.fcfPerShareSource,

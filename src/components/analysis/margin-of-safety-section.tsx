@@ -1,5 +1,5 @@
 import type { ValuationAnalysis } from "@/types/stock";
-import { cn } from "@/lib/utils";
+import { cn, formatMarginOfSafetyDisplay } from "@/lib/utils";
 
 interface MarginOfSafetySectionProps {
   valuation: ValuationAnalysis;
@@ -7,6 +7,8 @@ interface MarginOfSafetySectionProps {
 
 export function MarginOfSafetySection({ valuation }: MarginOfSafetySectionProps) {
   const positive = valuation.marginOfSafety >= 0;
+  const displayMos = formatMarginOfSafetyDisplay(valuation.marginOfSafety);
+  const extremelyOvervalued = valuation.marginOfSafety <= -100;
 
   return (
     <section className="glass-card rounded-3xl p-5">
@@ -27,15 +29,16 @@ export function MarginOfSafetySection({ valuation }: MarginOfSafetySectionProps)
               positive ? "text-success" : "text-danger"
             )}
           >
-            {valuation.marginOfSafety >= 0 ? "+" : ""}
-            {valuation.marginOfSafety.toFixed(1)}%
+            {displayMos}
           </p>
         </div>
       </div>
       <p className="mt-4 text-sm leading-relaxed text-text-secondary">
         {positive
           ? "目前股價低於合理價，具備一定安全邊際。"
-          : "目前股價高於合理價，安全邊際為負，需留意估值風險。"}
+          : extremelyOvervalued
+            ? "目前股價極度高估，遠高於合理價，需高度留意估值風險。"
+            : "目前股價高於合理價，安全邊際為負，需留意估值風險。"}
       </p>
     </section>
   );

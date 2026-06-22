@@ -39,6 +39,9 @@ const MOCK_DEFAULTS: Omit<
   companyClassification: "quality_compounder",
   moatIsEstimate: true,
   fcfPerShareSource: "reported",
+  debtToEquityUncertain: false,
+  peUnreliable: false,
+  peHighRisk: false,
 };
 
 function inferMockClassification(growthRate: number): CompanyClassification {
@@ -60,6 +63,9 @@ type MockStockSeed = Omit<
   | "companyClassification"
   | "moatIsEstimate"
   | "fcfPerShareSource"
+  | "debtToEquityUncertain"
+  | "peUnreliable"
+  | "peHighRisk"
 >;
 
 export const MOCK_STOCKS: Record<string, MockStockSeed> = {

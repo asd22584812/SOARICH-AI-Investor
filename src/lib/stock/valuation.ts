@@ -235,6 +235,53 @@ function calculateDividendBookValue(financials: StockFinancials): number {
   return financials.bookValuePerShare * fairPB;
 }
 
+export interface ValuationOptions {
+  peUnreliable?: boolean;
+  peHighRisk?: boolean;
+}
+
+function applyPeRiskToWeights(
+  weights: ValuationWeights,
+  options?: ValuationOptions
+): ValuationWeights {
+  if (!options?.peUnreliable && !options?.peHighRisk) return weights;
+
+  const adjusted = { ...weights };
+
+  if (options.peUnreliable) {
+    const removed = adjusted.pe + adjusted.peg;
+    adjusted.pe = 0;
+    adjusted.peg = 0;
+    if (removed <= 0) return adjusted;
+
+    const targets: (keyof ValuationWeights)[] = ["dcf", "fcfMultiple", "pb"];
+    const targetSum = targets.reduce((sum, key) => sum + adjusted[key], 0);
+    if (targetSum <= 0) return adjusted;
+
+    for (const key of targets) {
+      adjusted[key] += (adjusted[key] / targetSum) * removed;
+    }
+    return adjusted;
+  }
+
+  const peRemoved = adjusted.pe * 0.5;
+  const pegRemoved = adjusted.peg * 0.5;
+  adjusted.pe *= 0.5;
+  adjusted.peg *= 0.5;
+  const removed = peRemoved + pegRemoved;
+  if (removed <= 0) return adjusted;
+
+  const targets: (keyof ValuationWeights)[] = ["dcf", "fcfMultiple", "pb"];
+  const targetSum = targets.reduce((sum, key) => sum + adjusted[key], 0);
+  if (targetSum <= 0) return adjusted;
+
+  for (const key of targets) {
+    adjusted[key] += (adjusted[key] / targetSum) * removed;
+  }
+
+  return adjusted;
+}
+
 function redistributeWeights(
   weights: ValuationWeights,
   available: Partial<Record<keyof ValuationWeights, boolean>>
@@ -266,7 +313,8 @@ function redistributeWeights(
 export function calculateFairValue(
   financials: StockFinancials,
   currentPrice: number,
-  classification: CompanyClassification
+  classification: CompanyClassification,
+  options?: ValuationOptions
 ): ValuationResult {
   const dcfValue = calculateDCFValue(financials, currentPrice, classification);
   const peValue = calculatePEValue(financials, classification);
@@ -276,7 +324,10 @@ export function calculateFairValue(
   const roeQualityValue = calculateRoeQualityValue(financials);
   const dividendBookValue = calculateDividendBookValue(financials);
 
-  const baseWeights = getValuationWeights(classification);
+  const baseWeights = applyPeRiskToWeights(
+    getValuationWeights(classification),
+    options
+  );
   const weights = redistributeWeights(baseWeights, {
     dcf: dcfValue > 0,
     pe: peValue > 0,

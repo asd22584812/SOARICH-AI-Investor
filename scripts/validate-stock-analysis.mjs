@@ -4,16 +4,16 @@ import { searchStock } from "../src/lib/stock/yahoo.ts";
 
 const TICKERS = [
   "NVDA",
+  "META",
   "AAPL",
   "MSFT",
   "GOOGL",
-  "META",
   "TSLA",
   "2330",
-  "2327",
   "2454",
   "2317",
   "2308",
+  "2327",
 ];
 
 async function validateTicker(query) {
@@ -21,7 +21,7 @@ async function validateTicker(query) {
   if (!snapshot?.normalized) {
     console.log(`\n=== ${query} ===`);
     console.log("FAILED: no snapshot");
-    return;
+    return null;
   }
 
   const normalized = snapshot.normalized;
@@ -29,60 +29,78 @@ async function validateTicker(query) {
   if (!stockInput) {
     console.log(`\n=== ${query} ===`);
     console.log("FAILED: no stock input");
-    return;
+    return null;
   }
 
   const result = analyzeStockInput(stockInput);
+  const mos = result.valuation.marginOfSafety;
+  const mosDirection =
+    mos > 0
+      ? "undervalued"
+      : mos < 0
+        ? "overvalued"
+        : "fair";
+
+  const output = {
+    rawDebtToEquity: normalized.rawDebtToEquity,
+    normalizedDebtToEquity: normalized.debtToEquity,
+    debtToEquityUncertain: normalized.debtToEquityUncertain,
+    companyClassification: result.companyClassification,
+    classificationScores: normalized.classificationScores,
+    classificationReasons: normalized.classificationReasons,
+    peUnreliable: stockInput.peUnreliable,
+    peHighRisk: stockInput.peHighRisk,
+    fairValue: Math.round(result.valuation.fairValue),
+    marginOfSafety: Number(mos.toFixed(1)),
+    mosDirection,
+    valuationScore: result.valuationScore,
+    financialScore: result.financialScore,
+    buffettScore: result.buffettScore,
+    soarichRating: result.totalScore,
+    radarEligible: result.radarEligible,
+    anomalies: [],
+  };
+
+  const scores = [
+    result.totalScore,
+    result.financialScore,
+    result.buffettScore,
+    result.valuationScore,
+    result.growthScore,
+    result.moat.moatScore,
+  ];
+  if (!scores.every((s) => Number.isInteger(s))) {
+    output.anomalies.push("non-integer score");
+  }
+  if (Math.abs(mos) > 500) {
+    output.anomalies.push("extreme MOS magnitude");
+  }
 
   console.log(`\n=== ${query} ${stockInput.name} ===`);
-  console.log(
-    JSON.stringify(
-      {
-        rawYahoo: {
-          price: snapshot.currentPrice,
-          eps: snapshot.eps,
-          pe: snapshot.pe,
-          pb: snapshot.pb,
-          roe: snapshot.roe,
-          roa: snapshot.roa,
-          revenueGrowth: snapshot.revenueGrowth,
-          grossMargin: snapshot.grossMargin,
-          operatingMargin: snapshot.operatingMargin,
-          debtToEquity: snapshot.debtToEquity,
-          fcfPerShare: snapshot.freeCashFlowPerShare,
-        },
-        normalized: {
-          eps: normalized.eps,
-          pe: normalized.pe,
-          pb: normalized.pb,
-          roe: normalized.roe,
-          roa: normalized.roa,
-          revenueGrowth: normalized.revenueGrowth,
-          grossMargin: normalized.grossMargin,
-          operatingMargin: normalized.operatingMargin,
-          debtToEquity: normalized.debtToEquity,
-          fcfPerShare: normalized.freeCashFlowPerShare,
-          fcfSource: normalized.fcfPerShareSource,
-          missingFields: normalized.missingCriticalFields,
-        },
-        companyClassification: result.companyClassification,
-        fairValue: Math.round(result.valuation.fairValue),
-        marginOfSafety: Number(result.valuation.marginOfSafety.toFixed(1)),
-        moatScore: result.moat.moatScore,
-        financialScore: result.financialScore,
-        buffettScore: result.buffettScore,
-        soarichRating: result.totalScore,
-        insufficientData: result.insufficientData,
-        radarEligible: result.radarEligible,
-        valuationScore: result.valuationScore,
-        buySignal: result.buySignal.label,
-      },
-      null,
-      2
-    )
-  );
+  console.log(JSON.stringify(output, null, 2));
+  return output;
 }
 
+const results = [];
 for (const ticker of TICKERS) {
-  await validateTicker(ticker);
+  const row = await validateTicker(ticker);
+  if (row) results.push({ ticker, ...row });
 }
+
+console.log("\n=== SUMMARY ===");
+console.log(
+  JSON.stringify(
+    results.map((r) => ({
+      ticker: r.ticker,
+      class: r.companyClassification,
+      scores: r.classificationScores,
+      fairValue: r.fairValue,
+      mos: r.marginOfSafety,
+      rating: r.soarichRating,
+      radar: r.radarEligible,
+      anomalies: r.anomalies,
+    })),
+    null,
+    2
+  )
+);

@@ -55,6 +55,9 @@ export interface StockInput {
   companyClassification: import("./normalizer").CompanyClassification;
   moatIsEstimate: boolean;
   fcfPerShareSource: import("./normalizer").FcfPerShareSource;
+  debtToEquityUncertain: boolean;
+  peUnreliable: boolean;
+  peHighRisk: boolean;
 }
 
 export interface ValuationResult {

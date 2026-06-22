@@ -19,6 +19,14 @@ export function formatPercent(value: number) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+/** UI display only — calculation layer keeps raw MOS. */
+export function formatMarginOfSafetyDisplay(mos: number): string {
+  if (mos >= 100) return ">100%";
+  if (mos <= -100) return "<-100%";
+  const sign = mos >= 0 ? "+" : "";
+  return `${sign}${mos.toFixed(1)}%`;
+}
+
 export function formatMetric(
   value: number | null | undefined,
   formatter: (value: number) => string

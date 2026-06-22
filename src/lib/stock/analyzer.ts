@@ -5,6 +5,7 @@ import type {
   KeyPersonRisk,
   StockAnalysis,
 } from "@/types/stock";
+import { formatMarginOfSafetyDisplay } from "@/lib/utils";
 import { calculateMoatScore } from "./moat";
 import { getMockStock } from "./mockData";
 import {
@@ -66,14 +67,34 @@ function calculateFinancialScore(stock: StockInput): number {
       ? clampScore(Math.min(stock.currentRatio, 3) / 3 * 100)
       : 55;
 
+  const weights = stock.debtToEquityUncertain
+    ? {
+        roe: 0.28 + 0.075 * (0.28 / 0.85),
+        roa: 0.12 + 0.075 * (0.12 / 0.85),
+        gross: 0.15 + 0.075 * (0.15 / 0.85),
+        margin: 0.2 + 0.075 * (0.2 / 0.85),
+        debt: 0.075,
+        fcf: 0.05 + 0.075 * (0.05 / 0.85),
+        current: 0.05 + 0.075 * (0.05 / 0.85),
+      }
+    : {
+        roe: 0.28,
+        roa: 0.12,
+        gross: 0.15,
+        margin: 0.2,
+        debt: 0.15,
+        fcf: 0.05,
+        current: 0.05,
+      };
+
   return clampScore(
-    roeScore * 0.28 +
-      roaScore * 0.12 +
-      grossMarginScore * 0.15 +
-      marginScore * 0.2 +
-      debtScore * 0.15 +
-      fcfMarginScore * 0.05 +
-      currentRatioScore * 0.05
+    roeScore * weights.roe +
+      roaScore * weights.roa +
+      grossMarginScore * weights.gross +
+      marginScore * weights.margin +
+      debtScore * weights.debt +
+      fcfMarginScore * weights.fcf +
+      currentRatioScore * weights.current
   );
 }
 
@@ -273,7 +294,11 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
   const valuation = calculateFairValue(
     financials,
     stock.currentPrice,
-    stock.companyClassification
+    stock.companyClassification,
+    {
+      peUnreliable: stock.peUnreliable,
+      peHighRisk: stock.peHighRisk,
+    }
   );
   const moat = calculateMoatScore(stock);
   const financialScore = calculateFinancialScore(stock);
@@ -292,7 +317,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
 
   const buySignal = getBuySignalFromScore(totalScore);
 
-  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${valuation.marginOfSafety.toFixed(1)}%。`;
+  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${formatMarginOfSafetyDisplay(valuation.marginOfSafety)}。`;
 
   return {
     ticker: stock.ticker,
