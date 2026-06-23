@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { HomeMarketFeed, HomeStockCard, Market } from "@/types/stock";
+import type { Market } from "@/types/stock";
 import {
   analyzeStockInput,
   toStockAnalysis,
 } from "@/lib/stock/analyzer";
+import { buildHomeMarketFeed } from "@/lib/stock/home-feed";
 import { matchesMarketFilter } from "@/lib/stock/market-filter";
 import {
   buildStockInputFromYahoo,
@@ -22,6 +23,10 @@ const US_SCREEN_TICKERS = [
   "AMD",
   "META",
   "AMZN",
+  "NFLX",
+  "CRM",
+  "AVGO",
+  "COST",
 ];
 
 const TW_SCREEN_TICKERS = [
@@ -36,6 +41,10 @@ const TW_SCREEN_TICKERS = [
   "2002",
   "2308",
   "2327",
+  "2886",
+  "2891",
+  "3008",
+  "3711",
 ];
 
 async function analyzeTicker(ticker: string) {
@@ -51,24 +60,6 @@ async function analyzeTicker(ticker: string) {
     stockInput,
     snapshotToNullableMetrics(snapshot.normalized)
   );
-}
-
-function toHomeStockCard(analysis: NonNullable<Awaited<ReturnType<typeof analyzeTicker>>>): HomeStockCard {
-  return {
-    symbol: analysis.symbol,
-    name: analysis.name,
-    market: analysis.market,
-    score: analysis.totalScore,
-    entryLabel: analysis.entryLabel,
-    entrySignal: analysis.entrySignal,
-    price: analysis.price,
-    fairPrice: analysis.valuation.fairPrice,
-    undervaluedPercent: Math.max(
-      0,
-      Math.round(analysis.valuation.marginOfSafety)
-    ),
-    currency: analysis.currency,
-  };
 }
 
 export async function GET(request: NextRequest) {
@@ -87,33 +78,7 @@ export async function GET(request: NextRequest) {
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .filter((analysis) => matchesMarketFilter(analysis, market));
 
-    const toSortedCards = (
-      filterFn: (analysis: (typeof analyses)[number]) => boolean,
-      sortFn: (
-        a: (typeof analyses)[number],
-        b: (typeof analyses)[number]
-      ) => number
-    ) =>
-      analyses
-        .filter(filterFn)
-        .sort(sortFn)
-        .slice(0, 5)
-        .map(toHomeStockCard);
-
-    const feed: HomeMarketFeed = {
-      radar: toSortedCards(
-        (analysis) => analysis.radarEligible,
-        (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
-      ),
-      undervalued: toSortedCards(
-        (analysis) => analysis.undervaluedFocusEligible,
-        (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
-      ),
-      highQuality: toSortedCards(
-        (analysis) => analysis.highQualityWatchEligible,
-        (a, b) => b.totalScore - a.totalScore
-      ),
-    };
+    const feed = buildHomeMarketFeed(analyses);
 
     return NextResponse.json(feed);
   } catch (error) {

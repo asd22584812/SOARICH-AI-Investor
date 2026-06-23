@@ -22,9 +22,10 @@ import {
 function HomePageContent() {
   const { marketFilter, setMarketFilter, labels } = useMarketFilter();
   const [feed, setFeed] = useState<HomeMarketFeed>({
-    radar: [],
+    todayFocus: [],
     undervalued: [],
     highQuality: [],
+    moat: [],
   });
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
@@ -72,8 +73,6 @@ function HomePageContent() {
     };
   }, [marketFilter]);
 
-  const todayFocus = feed.undervalued.length > 0 ? feed.undervalued : feed.radar;
-
   return (
     <div className="space-y-5">
       <AppHeader />
@@ -99,11 +98,10 @@ function HomePageContent() {
         <>
           <HomeStockSection
             title={labels.todayFocus}
-            items={todayFocus}
+            items={feed.todayFocus}
             compact
             showUndervaluedBadge
           />
-          <HomeStockSection title={labels.radar} items={feed.radar} compact />
           <HomeStockSection
             title={labels.undervalued}
             items={feed.undervalued}
@@ -113,6 +111,11 @@ function HomePageContent() {
           <HomeStockSection
             title={labels.highQuality}
             items={feed.highQuality}
+            compact
+          />
+          <HomeStockSection
+            title={labels.moat}
+            items={feed.moat}
             compact
           />
         </>

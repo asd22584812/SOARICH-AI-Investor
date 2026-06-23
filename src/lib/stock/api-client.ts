@@ -53,9 +53,10 @@ export async function fetchHomeMarketFeed(
   const data = await parseJson<HomeMarketFeed>(response);
   return (
     data ?? {
-      radar: [],
+      todayFocus: [],
       undervalued: [],
       highQuality: [],
+      moat: [],
     }
   );
 }

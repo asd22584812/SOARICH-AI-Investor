@@ -124,9 +124,10 @@ export interface HomeStockCard {
 }
 
 export interface HomeMarketFeed {
-  radar: HomeStockCard[];
+  todayFocus: HomeStockCard[];
   undervalued: HomeStockCard[];
   highQuality: HomeStockCard[];
+  moat: HomeStockCard[];
 }
 
 /** @deprecated Use HomeStockCard */
