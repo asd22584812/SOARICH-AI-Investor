@@ -8,6 +8,7 @@ import { Sparkles } from "lucide-react";
 
 interface HomeStockSectionProps {
   title: string;
+  subtitle?: string | null;
   items: HomeStockCard[];
   compact?: boolean;
   showUndervaluedBadge?: boolean;
@@ -15,6 +16,7 @@ interface HomeStockSectionProps {
 
 export function HomeStockSection({
   title,
+  subtitle,
   items,
   compact,
   showUndervaluedBadge = false,
@@ -24,6 +26,9 @@ export function HomeStockSection({
       <div className={cn("flex items-center gap-2", compact ? "mb-2.5" : "mb-3")}>
         <Sparkles className="h-4 w-4 shrink-0 text-brand" />
         <h2 className="text-base font-semibold text-text-primary">{title}</h2>
+        {subtitle ? (
+          <span className="text-xs text-text-secondary">{subtitle}</span>
+        ) : null}
       </div>
 
       {items.length === 0 ? (

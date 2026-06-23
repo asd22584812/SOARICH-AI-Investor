@@ -29,6 +29,7 @@ export interface ValuationAnalysis {
   optimisticPrice: number;
   dcfValue: number;
   marginOfSafety: number;
+  valuationModel?: string;
   valuationConfidence?: "high" | "medium" | "low";
   dcfWasClamped?: boolean;
   dcfAdjustmentNote?: string;
@@ -108,6 +109,7 @@ export interface StockAnalysis extends StockQuote {
   undervaluedFocusEligible: boolean;
   highQualityWatchEligible: boolean;
   managementIsEstimate: boolean;
+  companyClassification?: string;
 }
 
 export interface HomeStockCard {
@@ -128,6 +130,19 @@ export interface HomeMarketFeed {
   undervalued: HomeStockCard[];
   highQuality: HomeStockCard[];
   moat: HomeStockCard[];
+}
+
+export interface HomeFeedResponse {
+  scanning: boolean;
+  message?: string;
+  feed: HomeMarketFeed;
+  sectionCounts: {
+    todayFocus: number;
+    undervalued: number;
+    highQuality: number;
+    moat: number;
+  };
+  lastScannedAt: string | null;
 }
 
 /** @deprecated Use HomeStockCard */

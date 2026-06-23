@@ -23,6 +23,6 @@ export function getHomeSectionLabels(filter: MarketFilter) {
     undervalued: `${prefix}低估關注`,
     highQuality: `${prefix}高品質觀察`,
     moat: `${prefix}護城河觀察`,
-    watchlist: "自選股",
+    watchlist: filter === "TW" ? "熱門台股" : "熱門美股",
   };
 }

@@ -10,37 +10,70 @@ import { useMarketFilter } from "@/contexts/market-filter-context";
 interface WatchlistCardsProps {
   items: WatchlistItem[];
   compact?: boolean;
+  horizontal?: boolean;
 }
 
-export function WatchlistCards({ items, compact }: WatchlistCardsProps) {
+export function WatchlistCards({
+  items,
+  compact,
+  horizontal = false,
+}: WatchlistCardsProps) {
   const { labels } = useMarketFilter();
 
   return (
     <section className="w-full overflow-hidden">
-      <h2 className={cn("text-base font-semibold text-text-primary", compact ? "mb-2.5" : "mb-3")}>
-        {labels.watchlist}
-      </h2>
-      <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
-        {items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-text-secondary">尚無自選股</p>
-        ) : (
-          items.map((item) => (
-            <WatchlistCard key={item.symbol} item={item} />
-          ))
+      <h2
+        className={cn(
+          "text-base font-semibold text-text-primary",
+          compact ? "mb-2.5" : "mb-3"
         )}
-      </div>
+      >
+        {labels.watchlist}
+        {!horizontal && items.length > 0 ? (
+          <span className="ml-2 text-xs font-normal text-text-secondary">
+            {items.length} 檔
+          </span>
+        ) : null}
+      </h2>
+
+      {items.length === 0 ? (
+        <p className="py-8 text-center text-sm text-text-secondary">
+          尚無熱門股票資料
+        </p>
+      ) : horizontal ? (
+        <div className="carousel">
+          {items.map((item) => (
+            <WatchlistCard key={item.symbol} item={item} horizontal />
+          ))}
+        </div>
+      ) : (
+        <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
+          {items.map((item) => (
+            <WatchlistCard key={item.symbol} item={item} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-function WatchlistCard({ item }: { item: WatchlistItem }) {
+function WatchlistCard({
+  item,
+  horizontal = false,
+}: {
+  item: WatchlistItem;
+  horizontal?: boolean;
+}) {
   const positive = item.changePercent >= 0;
   const signal = ENTRY_SIGNAL_CONFIG[item.entrySignal];
 
   return (
     <Link
       href={`/analysis?symbol=${item.symbol}`}
-      className="watchlist-card card-glass block rounded-2xl p-4"
+      className={cn(
+        "watchlist-card card-glass block rounded-2xl p-4",
+        horizontal && "min-w-[260px] shrink-0"
+      )}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -75,7 +108,7 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
             className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${signal.bg} ${signal.border} ${signal.color}`}
           >
             <span>{signal.emoji}</span>
-            <span>{item.entryLabel}</span>
+            <span className="max-w-[88px] truncate">{item.entryLabel}</span>
           </span>
         </div>
       </div>

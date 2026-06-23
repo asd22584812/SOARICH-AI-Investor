@@ -6,12 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number, currency: "TWD" | "USD" = "USD") {
-  return new Intl.NumberFormat(currency === "TWD" ? "zh-TW" : "en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: currency === "TWD" ? 0 : 2,
-    maximumFractionDigits: currency === "TWD" ? 0 : 2,
-  }).format(value);
+  if (currency === "TWD") {
+    return `NT$${Math.round(value).toLocaleString("zh-TW")}`;
+  }
+  return `US$${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function formatPercent(value: number) {

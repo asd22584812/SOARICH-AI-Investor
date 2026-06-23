@@ -5,7 +5,7 @@ import type {
 } from "./normalizer";
 
 const FINANCIAL_PATTERN =
-  /financial|bank|insurance|capital market|credit|mortgage|reit|broker|asset management|holding compan/i;
+  /financial|bank|insurance|capital market|credit|mortgage|reit|broker|asset management|holding compan|金控|銀行|保險|金融|證券|壽險/i;
 const CYCLICAL_PATTERN =
   /steel|mining|oil|gas|energy|chemical|material|auto|automotive|construction|shipping|airline|cement|paper|commodity|electronic component|passive component|passive|capacitor|resistor|industrial conglomerate|contract manufactur|container|freight|metals|lumber|building product|consumer electronics|computer hardware|electrical equipment/i;
 const TECH_GROWTH_PATTERN =
@@ -304,6 +304,26 @@ export function classifyCompanyWithScores(
   const value = scoreValue(data);
   const financial = scoreFinancial(data);
   const cyclical = scoreCyclical(data);
+
+  const industryText = `${data.sector ?? ""} ${data.industry ?? ""}`;
+  if (
+    /金融|銀行|保險|金控|證券|壽險|financial|bank|insurance/i.test(
+      industryText
+    ) &&
+    financial.score >= 40
+  ) {
+    return {
+      classification: "financial",
+      scores: {
+        growthScore: growth.score,
+        qualityScore: quality.score,
+        valueScore: value.score,
+        financialScore: financial.score,
+        cyclicalScore: cyclical.score,
+      },
+      reasons: [...financial.reasons, "產業別優先判定為金融股"],
+    };
+  }
 
   const scores: ClassificationScores = {
     growthScore: growth.score,

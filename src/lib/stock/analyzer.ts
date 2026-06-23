@@ -29,6 +29,7 @@ import {
   calculateFairValue,
   calculateValuationScore,
 } from "./valuation";
+import { describeValuationModel } from "./valuation-model";
 
 function toFinancials(stock: StockInput): StockFinancials {
   return {
@@ -513,6 +514,10 @@ export function toStockAnalysis(
       optimisticPrice: result.valuation.bullCasePrice,
       dcfValue: result.valuation.dcfValue,
       marginOfSafety: result.valuation.marginOfSafety,
+      valuationModel: describeValuationModel(
+        result.valuation.companyClassification,
+        result.valuation.weights
+      ),
       valuationConfidence: result.valuationConfidence,
       dcfWasClamped: result.valuation.dcfWasClamped,
       dcfAdjustmentNote: result.valuation.dcfWasClamped
@@ -560,6 +565,7 @@ export function toStockAnalysis(
     undervaluedFocusEligible: result.undervaluedFocusEligible,
     highQualityWatchEligible: result.highQualityWatchEligible,
     managementIsEstimate: result.managementIsEstimate,
+    companyClassification: result.valuation.companyClassification,
   };
 }
 

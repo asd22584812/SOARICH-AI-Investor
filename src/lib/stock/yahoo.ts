@@ -165,6 +165,16 @@ async function resolveTwDisplayName(
   return fallbackName;
 }
 
+async function resolveTwIndustry(symbol: string): Promise<string | null> {
+  try {
+    const match = await searchTaiwanStockByNameOrCode(symbol, 1);
+    const best = match.find((item) => item.symbol === symbol) ?? match[0];
+    return best?.industry ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function inferMarketFromSymbol(
   yahooSymbol: string,
   currency?: string
@@ -255,15 +265,20 @@ async function buildSnapshotFromYahoo(
       : rawName;
 
   const normalizedFinancials = applyCompanyClassification(
-    normalizeFinancials({
-      quote: quote as YahooQuoteLike,
-      summary: summary as YahooSummaryLike,
-      displaySymbol,
-      yahooSymbol,
-      market,
-      currency,
-      name: resolvedName,
-    })
+    await (async () => {
+      const base = normalizeFinancials({
+        quote: quote as YahooQuoteLike,
+        summary: summary as YahooSummaryLike,
+        displaySymbol,
+        yahooSymbol,
+        market,
+        currency,
+        name: resolvedName,
+      });
+      if (market !== "TW") return base;
+      const twIndustry = await resolveTwIndustry(displaySymbol);
+      return twIndustry ? { ...base, industry: twIndustry } : base;
+    })()
   );
 
   return mapNormalizedToSnapshot(normalizedFinancials);

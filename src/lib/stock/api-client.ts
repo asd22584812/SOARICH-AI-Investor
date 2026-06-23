@@ -1,7 +1,9 @@
 import type {
+  HomeFeedResponse,
   HomeMarketFeed,
   Market,
   StockAnalysis,
+  WatchlistItem,
 } from "@/types/stock";
 
 export interface StockSearchResult {
@@ -46,25 +48,52 @@ export async function searchStocksApi(
 
 export async function fetchHomeMarketFeed(
   market: Market
-): Promise<HomeMarketFeed> {
+): Promise<HomeFeedResponse> {
   const response = await fetch(`/api/stocks/recommendations?market=${market}`, {
     cache: "no-store",
   });
-  const data = await parseJson<HomeMarketFeed>(response);
+  const data = await parseJson<HomeFeedResponse>(response);
   return (
     data ?? {
-      todayFocus: [],
-      undervalued: [],
-      highQuality: [],
-      moat: [],
+      scanning: true,
+      message: "正在更新市場資料",
+      feed: {
+        todayFocus: [],
+        undervalued: [],
+        highQuality: [],
+        moat: [],
+      },
+      sectionCounts: {
+        todayFocus: 0,
+        undervalued: 0,
+        highQuality: 0,
+        moat: 0,
+      },
+      lastScannedAt: null,
     }
   );
 }
 
+export async function fetchPopularStocks(
+  market: Market,
+  limit = 20
+): Promise<{ scanning: boolean; message?: string; items: WatchlistItem[] }> {
+  const response = await fetch(
+    `/api/stocks/popular?market=${market}&limit=${limit}`,
+    { cache: "no-store" }
+  );
+  const data = await parseJson<{
+    scanning: boolean;
+    message?: string;
+    items: WatchlistItem[];
+  }>(response);
+  return data ?? { scanning: true, message: "正在更新市場資料", items: [] };
+}
+
 /** @deprecated Use fetchHomeMarketFeed */
 export async function fetchRecommendations(market: Market) {
-  const feed = await fetchHomeMarketFeed(market);
-  return feed.undervalued;
+  const result = await fetchHomeMarketFeed(market);
+  return result.feed.undervalued;
 }
 
 export function toStockQuoteFromSearch(result: StockSearchResult): import("@/types/stock").StockQuote {
