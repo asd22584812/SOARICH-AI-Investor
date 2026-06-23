@@ -138,9 +138,13 @@ function AnalysisContent() {
 
       <StockPriceHeader stock={analysis} />
 
-      <AIScoreSection totalScore={analysis.totalScore} scores={analysis.aiScore} />
+      <AIScoreSection
+        totalScore={analysis.totalScore}
+        scores={analysis.aiScore}
+        managementIsEstimate={analysis.managementIsEstimate}
+      />
 
-      <BuySignalHero signal={analysis.buySignal} />
+      <BuySignalHero signal={analysis.buySignal} entryLabel={analysis.entryLabel} />
 
       <ValuationSection
         valuation={analysis.valuation}

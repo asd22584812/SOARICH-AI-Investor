@@ -238,6 +238,29 @@ function calculateDividendBookValue(financials: StockFinancials): number {
 export interface ValuationOptions {
   peUnreliable?: boolean;
   peHighRisk?: boolean;
+  fcfEstimate?: boolean;
+}
+
+function applyFcfEstimateToWeights(weights: ValuationWeights): ValuationWeights {
+  const adjusted = { ...weights };
+  const removed = adjusted.dcf * 0.5;
+  adjusted.dcf *= 0.5;
+  if (removed <= 0) return adjusted;
+
+  const targets: (keyof ValuationWeights)[] = [
+    "fcfMultiple",
+    "pe",
+    "pb",
+    "peg",
+  ];
+  const targetSum = targets.reduce((sum, key) => sum + adjusted[key], 0);
+  if (targetSum <= 0) return adjusted;
+
+  for (const key of targets) {
+    adjusted[key] += (adjusted[key] / targetSum) * removed;
+  }
+
+  return adjusted;
 }
 
 function applyPeRiskToWeights(
@@ -324,10 +347,11 @@ export function calculateFairValue(
   const roeQualityValue = calculateRoeQualityValue(financials);
   const dividendBookValue = calculateDividendBookValue(financials);
 
-  const baseWeights = applyPeRiskToWeights(
-    getValuationWeights(classification),
-    options
-  );
+  const baseWeights = options?.fcfEstimate
+    ? applyFcfEstimateToWeights(
+        applyPeRiskToWeights(getValuationWeights(classification), options)
+      )
+    : applyPeRiskToWeights(getValuationWeights(classification), options);
   const weights = redistributeWeights(baseWeights, {
     dcf: dcfValue > 0,
     pe: peValue > 0,

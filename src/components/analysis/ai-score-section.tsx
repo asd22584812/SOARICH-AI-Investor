@@ -5,9 +5,14 @@ import { ScoreGauge } from "@/components/charts/score-gauge";
 interface AIScoreSectionProps {
   totalScore: number;
   scores: AIScoreBreakdown;
+  managementIsEstimate?: boolean;
 }
 
-export function AIScoreSection({ totalScore, scores }: AIScoreSectionProps) {
+export function AIScoreSection({
+  totalScore,
+  scores,
+  managementIsEstimate = false,
+}: AIScoreSectionProps) {
   const items = Object.entries(scores) as [keyof AIScoreBreakdown, number][];
 
   return (
@@ -36,6 +41,9 @@ export function AIScoreSection({ totalScore, scores }: AIScoreSectionProps) {
           </div>
         ))}
       </div>
+      {managementIsEstimate ? (
+        <p className="mt-3 text-xs text-text-secondary">管理層評分為模型估算</p>
+      ) : null}
     </section>
   );
 }

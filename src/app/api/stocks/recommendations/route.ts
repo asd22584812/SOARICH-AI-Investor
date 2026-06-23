@@ -4,7 +4,6 @@ import {
   analyzeStockInput,
   toStockAnalysis,
 } from "@/lib/stock/analyzer";
-import { isHomeRecommendation } from "@/lib/stock/signal";
 import {
   buildStockInputFromYahoo,
   snapshotToNullableMetrics,
@@ -66,13 +65,10 @@ export async function GET(request: NextRequest) {
     ).filter((item): item is NonNullable<typeof item> => item !== null);
 
     const recommendations = analyses
-      .filter((analysis) =>
-        isHomeRecommendation(
-          analysis.totalScore,
-          analysis.totalScore > 0 && analysis.financialProfile.score > 0
-        )
+      .filter((analysis) => analysis.undervaluedFocusEligible)
+      .sort(
+        (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
       )
-      .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, 5)
       .map((analysis) => ({
         symbol: analysis.symbol,

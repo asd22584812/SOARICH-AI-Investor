@@ -32,8 +32,13 @@ export function AIConclusionHero({ analysis }: AIConclusionHeroProps) {
             signal.color
           )}
         >
-          {signal.emoji} {signal.label}
+          {signal.emoji} {analysis.entryLabel}
         </span>
+        {analysis.highQualityWatchEligible && !analysis.undervaluedFocusEligible ? (
+          <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+            高品質觀察
+          </span>
+        ) : null}
         {aiConclusion.suitableForDCA && (
           <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
             適合分批布局

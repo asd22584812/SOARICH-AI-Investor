@@ -51,6 +51,9 @@ export function MoatSection({ moat }: MoatSectionProps) {
       </div>
 
       <p className="mt-3 text-sm leading-relaxed text-text-secondary">{moat.summary}</p>
+      {moat.isEstimate ? (
+        <p className="mt-2 text-xs text-text-secondary">護城河為模型估算</p>
+      ) : null}
     </section>
   );
 }

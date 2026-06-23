@@ -112,9 +112,15 @@ export interface StockAnalysisResult {
   buffettScore: number;
   valuationScore: number;
   totalScore: number;
+  entryScore: number;
+  entryLabel: string;
   aiSummary: string;
   insufficientData: boolean;
   moatIsEstimate: boolean;
+  managementIsEstimate: boolean;
+  valuationConfidence: import("./entry").ValuationConfidence;
   companyClassification: import("./normalizer").CompanyClassification;
   radarEligible: boolean;
+  undervaluedFocusEligible: boolean;
+  highQualityWatchEligible: boolean;
 }

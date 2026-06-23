@@ -4,10 +4,12 @@ import { cn } from "@/lib/utils";
 
 interface BuySignalHeroProps {
   signal: BuySignal;
+  entryLabel?: string;
 }
 
-export function BuySignalHero({ signal }: BuySignalHeroProps) {
+export function BuySignalHero({ signal, entryLabel }: BuySignalHeroProps) {
   const config = BUY_SIGNAL_CONFIG[signal];
+  const label = entryLabel ?? config.label;
 
   return (
     <section
@@ -19,10 +21,10 @@ export function BuySignalHero({ signal }: BuySignalHeroProps) {
     >
       <span className="text-6xl leading-none">{config.emoji}</span>
       <p className={cn("mt-4 text-3xl font-black tracking-tight", config.color)}>
-        {config.label}
+        {label}
       </p>
       <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-text-secondary">
-        依據綜合評級統一判定（90+ 強烈買入、80+ 適合買入）
+        依據安全邊際與公司品質判定入場時機，非單純綜合評級
       </p>
     </section>
   );

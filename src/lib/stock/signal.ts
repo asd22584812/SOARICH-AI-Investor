@@ -37,11 +37,12 @@ export function mapAnalysisSignalToUI(signal: AnalysisBuySignal): BuySignal {
   }
 }
 
+/** @deprecated Use isUndervaluedFocusEligible on analysis result */
 export function isHomeRecommendation(
-  totalScore: number,
-  radarEligible = true
+  _totalScore: number,
+  radarEligible = false
 ): boolean {
-  return radarEligible && totalScore >= RECOMMENDATION_MIN_SCORE;
+  return radarEligible;
 }
 
 export function isHomeRecommendationSignal(signal: BuySignal): boolean {

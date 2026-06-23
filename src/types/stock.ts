@@ -31,6 +31,7 @@ export interface ValuationAnalysis {
   optimisticPrice: number;
   dcfValue: number;
   marginOfSafety: number;
+  valuationConfidence?: "high" | "medium" | "low";
 }
 
 export interface MoatAnalysis {
@@ -41,6 +42,7 @@ export interface MoatAnalysis {
   scaleEconomy: number;
   switchingCost: number;
   summary: string;
+  isEstimate?: boolean;
 }
 
 export type RiskLevel = "high" | "medium" | "low";
@@ -93,6 +95,8 @@ export interface StockAnalysis extends StockQuote {
   industry: string | null;
   aiScore: AIScoreBreakdown;
   totalScore: number;
+  entryScore: number;
+  entryLabel: string;
   buySignal: BuySignal;
   valuation: ValuationAnalysis;
   moat: MoatAnalysis;
@@ -100,6 +104,10 @@ export interface StockAnalysis extends StockQuote {
   keyPersonRisk: KeyPersonRisk;
   buffett: BuffettScore;
   aiConclusion: AIConclusion;
+  radarEligible: boolean;
+  undervaluedFocusEligible: boolean;
+  highQualityWatchEligible: boolean;
+  managementIsEstimate: boolean;
 }
 
 export interface AIRecommendation {

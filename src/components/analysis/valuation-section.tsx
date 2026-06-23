@@ -18,6 +18,9 @@ export function ValuationSection({
       <p className="mb-5 text-xs text-text-secondary">
         安全價 · 合理價 · 樂觀價與目前股價落點
       </p>
+      {valuation.valuationConfidence === "low" ? (
+        <p className="mb-4 text-xs text-text-secondary">現金流資料為估算</p>
+      ) : null}
       <PriceRangeBar
         valuation={valuation}
         currentPrice={currentPrice}

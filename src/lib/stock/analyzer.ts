@@ -6,10 +6,18 @@ import type {
   StockAnalysis,
 } from "@/types/stock";
 import { formatMarginOfSafetyDisplay } from "@/lib/utils";
+import {
+  calculateEntryScore,
+  getEntryLabel,
+  isHighQualityWatchEligible,
+  isRadarEligible,
+  isUndervaluedFocusEligible,
+  mapEntryLabelToBuySignal,
+  resolveValuationConfidence,
+} from "./entry";
 import { calculateMoatScore } from "./moat";
 import { getMockStock } from "./mockData";
 import {
-  getBuySignalFromScore,
   mapAnalysisSignalToUI,
 } from "./signal";
 import type {
@@ -213,18 +221,31 @@ function buildAIConclusion(
     Math.round(result.valuation.marginOfSafety)
   );
   const isUndervalued = result.valuation.marginOfSafety > 0;
+  const isHighQuality = result.highQualityWatchEligible;
 
   return {
     isUndervalued,
-    suitableForDCA: result.totalScore >= 80 && !result.insufficientData,
+    suitableForDCA: result.undervaluedFocusEligible && result.totalScore >= 80,
     undervaluedPercent,
     highlights: result.insufficientData
       ? ["關鍵財務資料不足", "建議參考最新財報", "暫不納入精選雷達"]
-      : [
-          result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
-          result.growthScore >= 70 ? "成長動能佳" : "成長動能中等",
-          isUndervalued ? "估值具吸引力" : "建議等待更好價位",
-        ],
+      : isUndervalued
+        ? [
+            result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
+            result.growthScore >= 70 ? "成長動能佳" : "成長動能中等",
+            "估值具吸引力",
+          ]
+        : isHighQuality
+          ? [
+              "高品質企業",
+              result.moat.moatScore >= 75 ? "護城河穩固" : "競爭力尚可",
+              "建議等待更好價位",
+            ]
+          : [
+              result.moat.moatScore >= 80 ? "護城河強" : "產業地位穩健",
+              result.growthScore >= 70 ? "成長動能佳" : "成長動能中等",
+              "建議等待更好價位",
+            ],
     mainRisks: [
       stock.market === "TW" ? "地緣政治與匯率" : "總體經濟與利率",
       stock.debtToEquity != null && stock.debtToEquity > 1.2
@@ -243,8 +264,17 @@ function mapBuySignalToUI(signal: StockAnalysisResult["buySignal"]["signal"]): B
 }
 
 export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
+  const valuationConfidence = resolveValuationConfidence(stock.fcfPerShareSource);
+  const managementIsEstimate = true;
+
   if (stock.insufficientData) {
     const moat = calculateMoatScore(stock);
+    const entryLabel = getEntryLabel({
+      marginOfSafety: 0,
+      soarichRating: 0,
+      insufficientData: true,
+    });
+
     return {
       ticker: stock.ticker,
       name: stock.name,
@@ -274,7 +304,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
           dividendBook: 0,
         },
       },
-      buySignal: getBuySignalFromScore(0),
+      buySignal: mapEntryLabelToBuySignal(entryLabel),
       moat,
       financialScore: 0,
       growthScore: 0,
@@ -282,11 +312,17 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
       buffettScore: 0,
       valuationScore: 0,
       totalScore: 0,
+      entryScore: 0,
+      entryLabel,
       aiSummary: `${stock.name}（${stock.ticker}）資料不足，暫不評級。`,
       insufficientData: true,
       moatIsEstimate: stock.moatIsEstimate,
+      managementIsEstimate,
+      valuationConfidence,
       companyClassification: "insufficient_data",
       radarEligible: false,
+      undervaluedFocusEligible: false,
+      highQualityWatchEligible: false,
     };
   }
 
@@ -298,6 +334,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     {
       peUnreliable: stock.peUnreliable,
       peHighRisk: stock.peHighRisk,
+      fcfEstimate: stock.fcfPerShareSource === "eps_estimate",
     }
   );
   const moat = calculateMoatScore(stock);
@@ -315,9 +352,31 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
       valuationScore * 0.2
   );
 
-  const buySignal = getBuySignalFromScore(totalScore);
+  const entryScore = calculateEntryScore({
+    marginOfSafety: valuation.marginOfSafety,
+    valuationScore,
+    insufficientData: false,
+    peUnreliable: stock.peUnreliable,
+    peHighRisk: stock.peHighRisk,
+    valuationConfidence,
+  });
 
-  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，建議「${buySignal.label}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${formatMarginOfSafetyDisplay(valuation.marginOfSafety)}。`;
+  const entryLabel = getEntryLabel({
+    marginOfSafety: valuation.marginOfSafety,
+    soarichRating: totalScore,
+    insufficientData: false,
+  });
+
+  const buySignal = mapEntryLabelToBuySignal(entryLabel);
+
+  const eligibilityInput = {
+    soarichRating: totalScore,
+    marginOfSafety: valuation.marginOfSafety,
+    valuationScore,
+    insufficientData: false,
+  };
+
+  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，入場評估「${entryLabel}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${formatMarginOfSafetyDisplay(valuation.marginOfSafety)}。`;
 
   return {
     ticker: stock.ticker,
@@ -336,11 +395,22 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     buffettScore,
     valuationScore,
     totalScore,
+    entryScore,
+    entryLabel,
     aiSummary,
     insufficientData: false,
     moatIsEstimate: stock.moatIsEstimate,
+    managementIsEstimate,
+    valuationConfidence,
     companyClassification: stock.companyClassification,
-    radarEligible: totalScore >= 80,
+    radarEligible: isRadarEligible(eligibilityInput),
+    undervaluedFocusEligible: isUndervaluedFocusEligible(eligibilityInput),
+    highQualityWatchEligible: isHighQualityWatchEligible({
+      soarichRating: totalScore,
+      moatScore: moat.moatScore,
+      financialScore,
+      insufficientData: false,
+    }),
   };
 }
 
@@ -420,6 +490,8 @@ export function toStockAnalysis(
     changePercent: result.changePercent,
     currency: result.currency,
     totalScore: result.totalScore,
+    entryScore: result.entryScore,
+    entryLabel: result.entryLabel,
     buySignal: result.insufficientData
       ? "avoid"
       : mapBuySignalToUI(result.buySignal.signal),
@@ -436,6 +508,7 @@ export function toStockAnalysis(
       optimisticPrice: result.valuation.bullCasePrice,
       dcfValue: result.valuation.dcfValue,
       marginOfSafety: result.valuation.marginOfSafety,
+      valuationConfidence: result.valuationConfidence,
     },
     moat: {
       score: result.moat.moatScore,
@@ -445,6 +518,7 @@ export function toStockAnalysis(
       scaleEconomy: result.moat.scaleEconomy,
       switchingCost: result.moat.switchingCost,
       summary: moatSummary,
+      isEstimate: result.moatIsEstimate,
     },
     keyPersonRisk,
     buffett,
@@ -473,6 +547,10 @@ export function toStockAnalysis(
       pb: metrics?.pb ?? (stock.pb > 0 ? stock.pb : null),
       marketCap: metrics?.marketCap ?? stock.marketCap,
     },
+    radarEligible: result.radarEligible,
+    undervaluedFocusEligible: result.undervaluedFocusEligible,
+    highQualityWatchEligible: result.highQualityWatchEligible,
+    managementIsEstimate: result.managementIsEstimate,
   };
 }
 

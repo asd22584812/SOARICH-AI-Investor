@@ -34,73 +34,37 @@ async function validateTicker(query) {
 
   const result = analyzeStockInput(stockInput);
   const mos = result.valuation.marginOfSafety;
-  const mosDirection =
-    mos > 0
-      ? "undervalued"
-      : mos < 0
-        ? "overvalued"
-        : "fair";
 
   const output = {
-    rawDebtToEquity: normalized.rawDebtToEquity,
-    normalizedDebtToEquity: normalized.debtToEquity,
-    debtToEquityUncertain: normalized.debtToEquityUncertain,
-    companyClassification: result.companyClassification,
-    classificationScores: normalized.classificationScores,
-    classificationReasons: normalized.classificationReasons,
-    peUnreliable: stockInput.peUnreliable,
-    peHighRisk: stockInput.peHighRisk,
-    fairValue: Math.round(result.valuation.fairValue),
-    marginOfSafety: Number(mos.toFixed(1)),
-    mosDirection,
-    valuationScore: result.valuationScore,
-    financialScore: result.financialScore,
-    buffettScore: result.buffettScore,
     soarichRating: result.totalScore,
+    entryScore: result.entryScore,
+    marginOfSafety: Number(mos.toFixed(1)),
+    valuationScore: result.valuationScore,
     radarEligible: result.radarEligible,
+    undervaluedFocusEligible: result.undervaluedFocusEligible,
+    highQualityWatchEligible: result.highQualityWatchEligible,
+    entryLabel: result.entryLabel,
+    valuationConfidence: result.valuationConfidence,
     anomalies: [],
   };
 
-  const scores = [
-    result.totalScore,
-    result.financialScore,
-    result.buffettScore,
-    result.valuationScore,
-    result.growthScore,
-    result.moat.moatScore,
-  ];
-  if (!scores.every((s) => Number.isInteger(s))) {
-    output.anomalies.push("non-integer score");
+  if (result.radarEligible && mos < 0) {
+    output.anomalies.push("radar eligible with negative MOS");
   }
-  if (Math.abs(mos) > 500) {
-    output.anomalies.push("extreme MOS magnitude");
+  if (result.undervaluedFocusEligible && mos <= 0) {
+    output.anomalies.push("undervalued focus with non-positive MOS");
   }
 
   console.log(`\n=== ${query} ${stockInput.name} ===`);
   console.log(JSON.stringify(output, null, 2));
-  return output;
+  return { ticker: query, ...output };
 }
 
 const results = [];
 for (const ticker of TICKERS) {
   const row = await validateTicker(ticker);
-  if (row) results.push({ ticker, ...row });
+  if (row) results.push(row);
 }
 
 console.log("\n=== SUMMARY ===");
-console.log(
-  JSON.stringify(
-    results.map((r) => ({
-      ticker: r.ticker,
-      class: r.companyClassification,
-      scores: r.classificationScores,
-      fairValue: r.fairValue,
-      mos: r.marginOfSafety,
-      rating: r.soarichRating,
-      radar: r.radarEligible,
-      anomalies: r.anomalies,
-    })),
-    null,
-    2
-  )
-);
+console.log(JSON.stringify(results, null, 2));
