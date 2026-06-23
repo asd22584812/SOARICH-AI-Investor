@@ -1,18 +1,11 @@
-import type { BuySignal, RiskLevel } from "@/types/stock";
+import type { EntrySignal, RiskLevel } from "@/types/stock";
 
-export const BUY_SIGNAL_CONFIG: Record<
-  BuySignal,
+export const ENTRY_SIGNAL_CONFIG: Record<
+  EntrySignal,
   { label: string; emoji: string; color: string; bg: string; border: string }
 > = {
-  strongly_undervalued: {
-    label: "強烈買入",
-    emoji: "🟢",
-    color: "text-success",
-    bg: "bg-success/10",
-    border: "border-success/25",
-  },
-  good_buy: {
-    label: "適合買入",
+  strong_watch: {
+    label: "深度關注",
     emoji: "🟢",
     color: "text-success",
     bg: "bg-success/10",
@@ -25,7 +18,7 @@ export const BUY_SIGNAL_CONFIG: Record<
     bg: "bg-warning/10",
     border: "border-warning/25",
   },
-  overvalued: {
+  cautious: {
     label: "謹慎",
     emoji: "🟠",
     color: "text-orange-400",

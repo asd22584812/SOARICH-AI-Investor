@@ -1,7 +1,7 @@
 "use client";
 
 import type { StockAnalysis } from "@/types/stock";
-import { BUY_SIGNAL_CONFIG } from "@/lib/constants";
+import { ENTRY_SIGNAL_CONFIG } from "@/lib/constants";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ interface AIConclusionHeroProps {
 }
 
 export function AIConclusionHero({ analysis }: AIConclusionHeroProps) {
-  const signal = BUY_SIGNAL_CONFIG[analysis.buySignal];
+  const signal = ENTRY_SIGNAL_CONFIG[analysis.entrySignal];
   const { aiConclusion } = analysis;
 
   return (

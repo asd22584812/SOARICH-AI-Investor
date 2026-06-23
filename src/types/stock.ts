@@ -1,11 +1,9 @@
 export type Market = "TW" | "US";
 
-export type BuySignal =
-  | "strongly_undervalued"
-  | "good_buy"
-  | "watch"
-  | "overvalued"
-  | "avoid";
+export type EntrySignal = "strong_watch" | "watch" | "cautious" | "avoid";
+
+/** @deprecated Use EntrySignal */
+export type BuySignal = EntrySignal;
 
 export interface StockQuote {
   symbol: string;
@@ -32,6 +30,8 @@ export interface ValuationAnalysis {
   dcfValue: number;
   marginOfSafety: number;
   valuationConfidence?: "high" | "medium" | "low";
+  dcfWasClamped?: boolean;
+  dcfAdjustmentNote?: string;
 }
 
 export interface MoatAnalysis {
@@ -97,7 +97,7 @@ export interface StockAnalysis extends StockQuote {
   totalScore: number;
   entryScore: number;
   entryLabel: string;
-  buySignal: BuySignal;
+  entrySignal: EntrySignal;
   valuation: ValuationAnalysis;
   moat: MoatAnalysis;
   financialProfile: FinancialProfile;
@@ -110,21 +110,32 @@ export interface StockAnalysis extends StockQuote {
   managementIsEstimate: boolean;
 }
 
-export interface AIRecommendation {
+export interface HomeStockCard {
   symbol: string;
   name: string;
   market: Market;
   score: number;
-  buySignal: BuySignal;
+  entryLabel: string;
+  entrySignal: EntrySignal;
   price: number;
   fairPrice: number;
   undervaluedPercent: number;
   currency: "TWD" | "USD";
 }
 
+export interface HomeMarketFeed {
+  radar: HomeStockCard[];
+  undervalued: HomeStockCard[];
+  highQuality: HomeStockCard[];
+}
+
+/** @deprecated Use HomeStockCard */
+export type AIRecommendation = HomeStockCard;
+
 export interface WatchlistItem extends StockQuote {
   aiScore: number;
-  buySignal: BuySignal;
+  entryLabel: string;
+  entrySignal: EntrySignal;
   sparkline: number[];
 }
 

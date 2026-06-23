@@ -144,7 +144,7 @@ function AnalysisContent() {
         managementIsEstimate={analysis.managementIsEstimate}
       />
 
-      <BuySignalHero signal={analysis.buySignal} entryLabel={analysis.entryLabel} />
+      <BuySignalHero signal={analysis.entrySignal} entryLabel={analysis.entryLabel} />
 
       <ValuationSection
         valuation={analysis.valuation}

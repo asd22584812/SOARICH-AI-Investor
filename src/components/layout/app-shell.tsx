@@ -1,4 +1,5 @@
 import { BottomNav } from "./bottom-nav";
+import { MarketFilterProvider } from "@/contexts/market-filter-context";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -6,9 +7,11 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="mobile-app">
-      <main className="mobile-content">{children}</main>
-      <BottomNav />
-    </div>
+    <MarketFilterProvider>
+      <div className="mobile-app">
+        <main className="mobile-content">{children}</main>
+        <BottomNav />
+      </div>
+    </MarketFilterProvider>
   );
 }

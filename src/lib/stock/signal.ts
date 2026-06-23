@@ -1,17 +1,17 @@
-import type { BuySignal } from "@/types/stock";
-import type { AnalysisBuySignal, BuySignalResult } from "./types";
+import type { EntrySignal } from "@/types/stock";
+import type { AnalysisEntrySignal, EntrySignalResult } from "./types";
 
 /** 首頁精選最低綜合評級 */
 export const RECOMMENDATION_MIN_SCORE = 80;
 
-export function getBuySignalFromScore(totalScore: number): BuySignalResult {
+export function getEntrySignalFromScore(totalScore: number): EntrySignalResult {
   const score = Math.max(0, Math.min(100, Math.round(totalScore)));
 
   if (score >= 90) {
-    return { signal: "STRONG_BUY", label: "強烈關注" };
+    return { signal: "STRONG_WATCH", label: "深度關注" };
   }
   if (score >= 80) {
-    return { signal: "BUY", label: "值得研究" };
+    return { signal: "WATCH", label: "值得關注" };
   }
   if (score >= 70) {
     return { signal: "WATCH", label: "觀察" };
@@ -22,16 +22,16 @@ export function getBuySignalFromScore(totalScore: number): BuySignalResult {
   return { signal: "AVOID", label: "避免" };
 }
 
-export function mapAnalysisSignalToUI(signal: AnalysisBuySignal): BuySignal {
+export function mapAnalysisEntrySignalToUI(
+  signal: AnalysisEntrySignal
+): EntrySignal {
   switch (signal) {
-    case "STRONG_BUY":
-      return "strongly_undervalued";
-    case "BUY":
-      return "good_buy";
+    case "STRONG_WATCH":
+      return "strong_watch";
     case "WATCH":
       return "watch";
     case "CAUTIOUS":
-      return "overvalued";
+      return "cautious";
     case "AVOID":
       return "avoid";
   }
@@ -45,13 +45,6 @@ export function isHomeRecommendation(
   return radarEligible;
 }
 
-export function isHomeRecommendationSignal(signal: BuySignal): boolean {
-  return signal === "strongly_undervalued" || signal === "good_buy";
-}
-
-/** @deprecated Use getBuySignalFromScore(totalScore) */
-export function getBuySignal(marginOfSafety: number): BuySignalResult {
-  return getBuySignalFromScore(
-    marginOfSafety >= 30 ? 92 : marginOfSafety >= 15 ? 85 : marginOfSafety >= -10 ? 75 : marginOfSafety >= -25 ? 65 : 50
-  );
+export function isHomeRecommendationSignal(signal: EntrySignal): boolean {
+  return signal === "strong_watch" || signal === "watch";
 }

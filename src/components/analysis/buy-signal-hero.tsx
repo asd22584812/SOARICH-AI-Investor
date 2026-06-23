@@ -1,14 +1,16 @@
-import type { BuySignal } from "@/types/stock";
-import { BUY_SIGNAL_CONFIG } from "@/lib/constants";
+"use client";
+
+import type { EntrySignal } from "@/types/stock";
+import { ENTRY_SIGNAL_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-interface BuySignalHeroProps {
-  signal: BuySignal;
+interface EntrySignalHeroProps {
+  signal: EntrySignal;
   entryLabel?: string;
 }
 
-export function BuySignalHero({ signal, entryLabel }: BuySignalHeroProps) {
-  const config = BUY_SIGNAL_CONFIG[signal];
+export function BuySignalHero({ signal, entryLabel }: EntrySignalHeroProps) {
+  const config = ENTRY_SIGNAL_CONFIG[signal];
   const label = entryLabel ?? config.label;
 
   return (

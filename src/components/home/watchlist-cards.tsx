@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import type { WatchlistItem } from "@/types/stock";
-import { BUY_SIGNAL_CONFIG } from "@/lib/constants";
+import { ENTRY_SIGNAL_CONFIG } from "@/lib/constants";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import { Sparkline } from "@/components/charts/sparkline";
+import { useMarketFilter } from "@/contexts/market-filter-context";
 
 interface WatchlistCardsProps {
   items: WatchlistItem[];
@@ -12,10 +13,12 @@ interface WatchlistCardsProps {
 }
 
 export function WatchlistCards({ items, compact }: WatchlistCardsProps) {
+  const { labels } = useMarketFilter();
+
   return (
     <section className="w-full overflow-hidden">
       <h2 className={cn("text-base font-semibold text-text-primary", compact ? "mb-2.5" : "mb-3")}>
-        自選股
+        {labels.watchlist}
       </h2>
       <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
         {items.length === 0 ? (
@@ -32,7 +35,7 @@ export function WatchlistCards({ items, compact }: WatchlistCardsProps) {
 
 function WatchlistCard({ item }: { item: WatchlistItem }) {
   const positive = item.changePercent >= 0;
-  const signal = BUY_SIGNAL_CONFIG[item.buySignal];
+  const signal = ENTRY_SIGNAL_CONFIG[item.entrySignal];
 
   return (
     <Link
@@ -72,7 +75,7 @@ function WatchlistCard({ item }: { item: WatchlistItem }) {
             className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${signal.bg} ${signal.border} ${signal.color}`}
           >
             <span>{signal.emoji}</span>
-            <span>{signal.label}</span>
+            <span>{item.entryLabel}</span>
           </span>
         </div>
       </div>

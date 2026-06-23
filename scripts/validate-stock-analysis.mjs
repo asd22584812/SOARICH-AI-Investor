@@ -16,6 +16,8 @@ const TICKERS = [
   "2327",
 ];
 
+const TW_TICKERS = new Set(["2330", "2454", "2317", "2308", "2327"]);
+
 async function validateTicker(query) {
   const snapshot = await searchStock(query);
   if (!snapshot?.normalized) {
@@ -33,26 +35,39 @@ async function validateTicker(query) {
   }
 
   const result = analyzeStockInput(stockInput);
-  const mos = result.valuation.marginOfSafety;
 
   const output = {
-    soarichRating: result.totalScore,
-    entryScore: result.entryScore,
-    marginOfSafety: Number(mos.toFixed(1)),
-    valuationScore: result.valuationScore,
+    entryLabel: result.entryLabel,
+    internalSignal: result.entrySignal.signal,
+    yahooSymbol: snapshot.yahooSymbol,
+    currency: snapshot.currency,
+    currentPrice: snapshot.currentPrice,
+    name: snapshot.name,
+    market: snapshot.market,
+    dcfWasClamped: result.valuation.dcfWasClamped,
     radarEligible: result.radarEligible,
     undervaluedFocusEligible: result.undervaluedFocusEligible,
     highQualityWatchEligible: result.highQualityWatchEligible,
-    entryLabel: result.entryLabel,
-    valuationConfidence: result.valuationConfidence,
     anomalies: [],
   };
 
-  if (result.radarEligible && mos < 0) {
-    output.anomalies.push("radar eligible with negative MOS");
+  if (TW_TICKERS.has(query)) {
+    if (output.market !== "TW") {
+      output.anomalies.push("TW ticker resolved to non-TW market");
+    }
+    if (output.currency !== "TWD") {
+      output.anomalies.push("TW ticker resolved to non-TWD currency");
+    }
+    if (!/\.(TW|TWO)$/i.test(output.yahooSymbol)) {
+      output.anomalies.push("TW ticker missing .TW/.TWO suffix");
+    }
+    if (!output.yahooSymbol.startsWith(`${query}.`)) {
+      output.anomalies.push("yahooSymbol does not match input code");
+    }
   }
-  if (result.undervaluedFocusEligible && mos <= 0) {
-    output.anomalies.push("undervalued focus with non-positive MOS");
+
+  if (result.radarEligible && result.valuation.marginOfSafety < 0) {
+    output.anomalies.push("radar eligible with negative MOS");
   }
 
   console.log(`\n=== ${query} ${stockInput.name} ===`);

@@ -97,10 +97,45 @@ function getStage1GrowthRate(
   return Math.min(Math.max(growthRate, 0), cap) / 100;
 }
 
-function clampDCFValue(dcfValue: number, currentPrice: number): number {
+function clampDCFValue(
+  dcfValue: number,
+  currentPrice: number
+): { value: number; wasClamped: boolean } {
   const maxDcf = currentPrice * DCF_MAX_PRICE_MULTIPLIER;
   const minDcf = currentPrice * DCF_MIN_PRICE_MULTIPLIER;
-  return Math.max(minDcf, Math.min(maxDcf, dcfValue));
+  const value = Math.max(minDcf, Math.min(maxDcf, dcfValue));
+  return { value, wasClamped: value !== dcfValue };
+}
+
+export function calculateDCFValue(
+  financials: StockFinancials,
+  currentPrice: number,
+  classification: CompanyClassification
+): { value: number; wasClamped: boolean } {
+  if (financials.freeCashFlowPerShare <= 0) {
+    const fallback =
+      financials.eps > 0 ? financials.eps * DCF_EPS_FALLBACK_MULTIPLIER : 0;
+    return { value: fallback, wasClamped: false };
+  }
+
+  const stage1Growth = getStage1GrowthRate(
+    financials.growthRate,
+    classification
+  );
+  let fcf = financials.freeCashFlowPerShare;
+  let dcfValue = 0;
+
+  for (let year = 1; year <= STAGE1_YEARS; year++) {
+    fcf *= 1 + stage1Growth;
+    dcfValue += fcf / Math.pow(1 + DISCOUNT_RATE, year);
+  }
+
+  const terminalValue =
+    (fcf * (1 + TERMINAL_GROWTH)) / (DISCOUNT_RATE - TERMINAL_GROWTH);
+  dcfValue += terminalValue / Math.pow(1 + DISCOUNT_RATE, STAGE1_YEARS);
+
+  const clamped = clampDCFValue(dcfValue, currentPrice);
+  return clamped;
 }
 
 export function getValuationWeights(
@@ -123,36 +158,6 @@ function getFairPE(
   const marginFactor = clamp((financials.operatingMargin ?? 0) / 35, 0, 1);
   const blend = growthFactor * 0.45 + roeFactor * 0.35 + marginFactor * 0.2;
   return minPE + (maxPE - minPE) * blend;
-}
-
-export function calculateDCFValue(
-  financials: StockFinancials,
-  currentPrice: number,
-  classification: CompanyClassification
-): number {
-  if (financials.freeCashFlowPerShare <= 0) {
-    return financials.eps > 0
-      ? financials.eps * DCF_EPS_FALLBACK_MULTIPLIER
-      : 0;
-  }
-
-  const stage1Growth = getStage1GrowthRate(
-    financials.growthRate,
-    classification
-  );
-  let fcf = financials.freeCashFlowPerShare;
-  let dcfValue = 0;
-
-  for (let year = 1; year <= STAGE1_YEARS; year++) {
-    fcf *= 1 + stage1Growth;
-    dcfValue += fcf / Math.pow(1 + DISCOUNT_RATE, year);
-  }
-
-  const terminalValue =
-    (fcf * (1 + TERMINAL_GROWTH)) / (DISCOUNT_RATE - TERMINAL_GROWTH);
-  dcfValue += terminalValue / Math.pow(1 + DISCOUNT_RATE, STAGE1_YEARS);
-
-  return clampDCFValue(dcfValue, currentPrice);
 }
 
 export function calculatePEValue(
@@ -339,7 +344,8 @@ export function calculateFairValue(
   classification: CompanyClassification,
   options?: ValuationOptions
 ): ValuationResult {
-  const dcfValue = calculateDCFValue(financials, currentPrice, classification);
+  const dcfResult = calculateDCFValue(financials, currentPrice, classification);
+  const dcfValue = dcfResult.value;
   const peValue = calculatePEValue(financials, classification);
   const pegValue = calculatePEGValue(financials, classification);
   const pbValue = calculatePBValue(financials, classification);
@@ -389,6 +395,7 @@ export function calculateFairValue(
     marginOfSafety,
     companyClassification: classification,
     weights,
+    dcfWasClamped: dcfResult.wasClamped,
   };
 }
 

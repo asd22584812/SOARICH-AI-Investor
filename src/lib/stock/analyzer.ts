@@ -1,7 +1,7 @@
 import type {
   AIConclusion,
   BuffettScore,
-  BuySignal,
+  EntrySignal,
   KeyPersonRisk,
   StockAnalysis,
 } from "@/types/stock";
@@ -12,13 +12,13 @@ import {
   isHighQualityWatchEligible,
   isRadarEligible,
   isUndervaluedFocusEligible,
-  mapEntryLabelToBuySignal,
+  mapEntryLabelToSignal,
   resolveValuationConfidence,
 } from "./entry";
 import { calculateMoatScore } from "./moat";
 import { getMockStock } from "./mockData";
 import {
-  mapAnalysisSignalToUI,
+  mapAnalysisEntrySignalToUI,
 } from "./signal";
 import type {
   StockAnalysisResult,
@@ -259,8 +259,10 @@ function buildAIConclusion(
   };
 }
 
-function mapBuySignalToUI(signal: StockAnalysisResult["buySignal"]["signal"]): BuySignal {
-  return mapAnalysisSignalToUI(signal);
+function mapEntrySignalToUI(
+  signal: StockAnalysisResult["entrySignal"]["signal"]
+): EntrySignal {
+  return mapAnalysisEntrySignalToUI(signal);
 }
 
 export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
@@ -303,8 +305,9 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
           roeQuality: 0,
           dividendBook: 0,
         },
+        dcfWasClamped: false,
       },
-      buySignal: mapEntryLabelToBuySignal(entryLabel),
+      entrySignal: mapEntryLabelToSignal(entryLabel),
       moat,
       financialScore: 0,
       growthScore: 0,
@@ -367,7 +370,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     insufficientData: false,
   });
 
-  const buySignal = mapEntryLabelToBuySignal(entryLabel);
+  const entrySignal = mapEntryLabelToSignal(entryLabel);
 
   const eligibilityInput = {
     soarichRating: totalScore,
@@ -376,7 +379,9 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     insufficientData: false,
   };
 
-  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，入場評估「${entryLabel}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${formatMarginOfSafetyDisplay(valuation.marginOfSafety)}。`;
+  const aiSummary = `${stock.name}（${stock.ticker}）SOARICH Rating ${totalScore} 分，入場評估「${entryLabel}」。目前股價 ${stock.currentPrice}，合理價約 ${Math.round(valuation.fairValue)}，安全邊際 ${formatMarginOfSafetyDisplay(valuation.marginOfSafety)}。${
+    valuation.dcfWasClamped ? " DCF 已套用防極端值調整。" : ""
+  }`;
 
   return {
     ticker: stock.ticker,
@@ -387,7 +392,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
     change: stock.change,
     changePercent: stock.changePercent,
     valuation,
-    buySignal,
+    entrySignal,
     moat,
     financialScore,
     growthScore,
@@ -492,9 +497,9 @@ export function toStockAnalysis(
     totalScore: result.totalScore,
     entryScore: result.entryScore,
     entryLabel: result.entryLabel,
-    buySignal: result.insufficientData
+    entrySignal: result.insufficientData
       ? "avoid"
-      : mapBuySignalToUI(result.buySignal.signal),
+      : mapEntrySignalToUI(result.entrySignal.signal),
     aiScore: {
       moat: result.moat.moatScore,
       financials: result.financialScore,
@@ -509,6 +514,10 @@ export function toStockAnalysis(
       dcfValue: result.valuation.dcfValue,
       marginOfSafety: result.valuation.marginOfSafety,
       valuationConfidence: result.valuationConfidence,
+      dcfWasClamped: result.valuation.dcfWasClamped,
+      dcfAdjustmentNote: result.valuation.dcfWasClamped
+        ? "DCF 已套用防極端值調整"
+        : undefined,
     },
     moat: {
       score: result.moat.moatScore,

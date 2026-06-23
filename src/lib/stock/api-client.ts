@@ -1,8 +1,7 @@
 import type {
-  AIRecommendation,
+  HomeMarketFeed,
   Market,
   StockAnalysis,
-  StockQuote,
 } from "@/types/stock";
 
 export interface StockSearchResult {
@@ -45,17 +44,29 @@ export async function searchStocksApi(
   return data ?? [];
 }
 
-export async function fetchRecommendations(
+export async function fetchHomeMarketFeed(
   market: Market
-): Promise<AIRecommendation[]> {
+): Promise<HomeMarketFeed> {
   const response = await fetch(`/api/stocks/recommendations?market=${market}`, {
     cache: "no-store",
   });
-  const data = await parseJson<AIRecommendation[]>(response);
-  return data ?? [];
+  const data = await parseJson<HomeMarketFeed>(response);
+  return (
+    data ?? {
+      radar: [],
+      undervalued: [],
+      highQuality: [],
+    }
+  );
 }
 
-export function toStockQuoteFromSearch(result: StockSearchResult): StockQuote {
+/** @deprecated Use fetchHomeMarketFeed */
+export async function fetchRecommendations(market: Market) {
+  const feed = await fetchHomeMarketFeed(market);
+  return feed.undervalued;
+}
+
+export function toStockQuoteFromSearch(result: StockSearchResult): import("@/types/stock").StockQuote {
   return {
     symbol: result.symbol,
     name: result.name,

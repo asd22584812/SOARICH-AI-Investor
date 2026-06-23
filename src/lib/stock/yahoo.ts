@@ -322,6 +322,18 @@ function normalizedFromYahooSymbol(
   };
 }
 
+function isAcceptableTaiwanSnapshot(
+  snapshot: YahooStockSnapshot,
+  normalized: NormalizedTicker
+): boolean {
+  if (normalized.market !== "TW") return true;
+  if (snapshot.market !== "TW") return false;
+  if (snapshot.currency !== "TWD") return false;
+  if (!/\.(TW|TWO)$/i.test(snapshot.yahooSymbol)) return false;
+  if (snapshot.displaySymbol !== normalized.displaySymbol) return false;
+  return true;
+}
+
 async function resolveSnapshotFromCandidates(
   query: string,
   candidates: NormalizedTicker[]
@@ -329,8 +341,17 @@ async function resolveSnapshotFromCandidates(
   for (const normalized of candidates) {
     for (const yahooSymbol of normalized.yahooSymbols) {
       const snapshot = await tryBuildSnapshot(normalized, yahooSymbol);
-      if (snapshot) return snapshot;
+      if (snapshot && isAcceptableTaiwanSnapshot(snapshot, normalized)) {
+        return snapshot;
+      }
     }
+  }
+
+  const isTwQuery =
+    candidates.some((candidate) => candidate.market === "TW") ||
+    isTaiwanSearchQuery(query);
+  if (isTwQuery) {
+    return null;
   }
 
   const searchedSymbols = await findSymbolsViaYahooSearch(query, 5);
@@ -353,7 +374,9 @@ export async function searchStock(query: string): Promise<YahooStockSnapshot | n
     if (best) {
       const normalized = buildNormalizedFromTaiwanMatch(trimmed, best);
       const snapshot = await tryBuildSnapshot(normalized, best.yahooSymbol);
-      if (snapshot) return snapshot;
+      if (snapshot && isAcceptableTaiwanSnapshot(snapshot, normalized)) {
+        return snapshot;
+      }
 
       const alternateSuffix = best.yahooSuffix === ".TW" ? ".TWO" : ".TW";
       const alternateSymbol = `${best.symbol}${alternateSuffix}`;
@@ -364,7 +387,15 @@ export async function searchStock(query: string): Promise<YahooStockSnapshot | n
         },
         alternateSymbol
       );
-      if (alternateSnapshot) return alternateSnapshot;
+      if (
+        alternateSnapshot &&
+        isAcceptableTaiwanSnapshot(alternateSnapshot, {
+          ...normalized,
+          yahooSymbols: [alternateSymbol],
+        })
+      ) {
+        return alternateSnapshot;
+      }
     }
   }
 

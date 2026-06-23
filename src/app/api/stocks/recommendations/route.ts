@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Market } from "@/types/stock";
+import type { HomeMarketFeed, HomeStockCard, Market } from "@/types/stock";
 import {
   analyzeStockInput,
   toStockAnalysis,
 } from "@/lib/stock/analyzer";
+import { matchesMarketFilter } from "@/lib/stock/market-filter";
 import {
   buildStockInputFromYahoo,
   snapshotToNullableMetrics,
@@ -33,6 +34,8 @@ const TW_SCREEN_TICKERS = [
   "2412",
   "1301",
   "2002",
+  "2308",
+  "2327",
 ];
 
 async function analyzeTicker(ticker: string) {
@@ -50,6 +53,24 @@ async function analyzeTicker(ticker: string) {
   );
 }
 
+function toHomeStockCard(analysis: NonNullable<Awaited<ReturnType<typeof analyzeTicker>>>): HomeStockCard {
+  return {
+    symbol: analysis.symbol,
+    name: analysis.name,
+    market: analysis.market,
+    score: analysis.totalScore,
+    entryLabel: analysis.entryLabel,
+    entrySignal: analysis.entrySignal,
+    price: analysis.price,
+    fairPrice: analysis.valuation.fairPrice,
+    undervaluedPercent: Math.max(
+      0,
+      Math.round(analysis.valuation.marginOfSafety)
+    ),
+    currency: analysis.currency,
+  };
+}
+
 export async function GET(request: NextRequest) {
   const market = request.nextUrl.searchParams.get("market") as Market | null;
 
@@ -62,30 +83,39 @@ export async function GET(request: NextRequest) {
   try {
     const analyses = (
       await Promise.all(tickers.map((ticker) => analyzeTicker(ticker)))
-    ).filter((item): item is NonNullable<typeof item> => item !== null);
+    )
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .filter((analysis) => matchesMarketFilter(analysis, market));
 
-    const recommendations = analyses
-      .filter((analysis) => analysis.undervaluedFocusEligible)
-      .sort(
+    const toSortedCards = (
+      filterFn: (analysis: (typeof analyses)[number]) => boolean,
+      sortFn: (
+        a: (typeof analyses)[number],
+        b: (typeof analyses)[number]
+      ) => number
+    ) =>
+      analyses
+        .filter(filterFn)
+        .sort(sortFn)
+        .slice(0, 5)
+        .map(toHomeStockCard);
+
+    const feed: HomeMarketFeed = {
+      radar: toSortedCards(
+        (analysis) => analysis.radarEligible,
         (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
-      )
-      .slice(0, 5)
-      .map((analysis) => ({
-        symbol: analysis.symbol,
-        name: analysis.name,
-        market: analysis.market,
-        score: analysis.totalScore,
-        buySignal: analysis.buySignal,
-        price: analysis.price,
-        fairPrice: analysis.valuation.fairPrice,
-        undervaluedPercent: Math.max(
-          0,
-          Math.round(analysis.valuation.marginOfSafety)
-        ),
-        currency: analysis.currency,
-      }));
+      ),
+      undervalued: toSortedCards(
+        (analysis) => analysis.undervaluedFocusEligible,
+        (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
+      ),
+      highQuality: toSortedCards(
+        (analysis) => analysis.highQualityWatchEligible,
+        (a, b) => b.totalScore - a.totalScore
+      ),
+    };
 
-    return NextResponse.json(recommendations);
+    return NextResponse.json(feed);
   } catch (error) {
     console.error("[api/stocks/recommendations]", error);
     return NextResponse.json(

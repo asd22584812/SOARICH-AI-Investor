@@ -43,7 +43,7 @@ export function SearchBar({
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const searchResults = await searchStocksApi(trimmed, market);
+        const searchResults = await searchStocksApi(trimmed);
         setResults(searchResults.map(toStockQuoteFromSearch));
       } catch {
         setResults([]);
@@ -53,7 +53,7 @@ export function SearchBar({
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [query, market]);
+  }, [query]);
 
   const navigateToStock = (symbol: string) => {
     setQuery("");

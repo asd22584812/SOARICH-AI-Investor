@@ -11,7 +11,8 @@ export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
     changePercent: stock.changePercent,
     currency: stock.currency,
     aiScore: stock.totalScore,
-    buySignal: stock.buySignal,
+    entryLabel: stock.entryLabel,
+    entrySignal: stock.entrySignal,
     sparkline: generateSparkline(
       stock.symbol.charCodeAt(0) * 100,
       20,

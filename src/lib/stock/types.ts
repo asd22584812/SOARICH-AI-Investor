@@ -72,6 +72,7 @@ export interface ValuationResult {
   marginOfSafety: number;
   companyClassification: import("./normalizer").CompanyClassification;
   weights: import("./valuation").ValuationWeights;
+  dcfWasClamped: boolean;
 }
 
 export interface MoatScore {
@@ -83,17 +84,22 @@ export interface MoatScore {
   moatScore: number;
 }
 
-export type AnalysisBuySignal =
-  | "STRONG_BUY"
-  | "BUY"
+export type AnalysisEntrySignal =
+  | "STRONG_WATCH"
   | "WATCH"
   | "CAUTIOUS"
   | "AVOID";
 
-export interface BuySignalResult {
-  signal: AnalysisBuySignal;
+export interface EntrySignalResult {
+  signal: AnalysisEntrySignal;
   label: string;
 }
+
+/** @deprecated Use AnalysisEntrySignal */
+export type AnalysisBuySignal = AnalysisEntrySignal;
+
+/** @deprecated Use EntrySignalResult */
+export type BuySignalResult = EntrySignalResult;
 
 export interface StockAnalysisResult {
   ticker: string;
@@ -104,7 +110,7 @@ export interface StockAnalysisResult {
   change: number;
   changePercent: number;
   valuation: ValuationResult;
-  buySignal: BuySignalResult;
+  entrySignal: EntrySignalResult;
   moat: MoatScore;
   financialScore: number;
   growthScore: number;

@@ -1,5 +1,5 @@
 import type { FcfPerShareSource } from "./normalizer";
-import type { AnalysisBuySignal, BuySignalResult } from "./types";
+import type { AnalysisEntrySignal, EntrySignalResult } from "./types";
 
 export type ValuationConfidence = "high" | "medium" | "low";
 
@@ -104,15 +104,15 @@ export function isHighQualityWatchEligible(input: {
   );
 }
 
-export function mapEntryLabelToBuySignal(entryLabel: string): BuySignalResult {
-  let signal: AnalysisBuySignal = "AVOID";
+export function mapEntryLabelToSignal(entryLabel: string): EntrySignalResult {
+  let signal: AnalysisEntrySignal = "AVOID";
 
   switch (entryLabel) {
     case "深度低估，值得深入研究":
-      signal = "STRONG_BUY";
+      signal = "STRONG_WATCH";
       break;
     case "具安全邊際":
-      signal = "BUY";
+      signal = "WATCH";
       break;
     case "接近合理價":
       signal = "WATCH";
