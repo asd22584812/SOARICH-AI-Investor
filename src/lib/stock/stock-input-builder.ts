@@ -56,6 +56,7 @@ export function buildStockInputFromNormalized(
     bookValuePerShare: coalesceNumber(data.bookValuePerShare),
     freeCashFlowPerShare: coalesceNumber(data.freeCashFlowPerShare),
     growthRate: coalesceNumber(data.revenueGrowth),
+    earningsGrowth: data.earningsGrowth,
     roe: coalesceNumber(roe),
     roa: coalesceNumber(roa),
     grossMargin: coalesceNumber(grossMargin),

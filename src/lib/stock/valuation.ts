@@ -6,9 +6,6 @@ const TERMINAL_GROWTH = 0.025;
 const STAGE1_YEARS = 5;
 const GROWTH_STOCK_THRESHOLD = 15;
 const STAGE1_GROWTH_CAP = { growth: 18, value: 10 } as const;
-const DCF_MAX_PRICE_MULTIPLIER = 2.2;
-const DCF_MIN_PRICE_MULTIPLIER = 0.35;
-const DCF_EPS_FALLBACK_MULTIPLIER = 12;
 const PEG_MIN_GROWTH = 8;
 
 const FAIR_PE_RANGES: Record<
@@ -94,28 +91,16 @@ function getStage1GrowthRate(
   const isGrowthLike =
     classification === "growth" || growthRate > GROWTH_STOCK_THRESHOLD;
   const cap = isGrowthLike ? STAGE1_GROWTH_CAP.growth : STAGE1_GROWTH_CAP.value;
-  return Math.min(Math.max(growthRate, 0), cap) / 100;
-}
-
-function clampDCFValue(
-  dcfValue: number,
-  currentPrice: number
-): { value: number; wasClamped: boolean } {
-  const maxDcf = currentPrice * DCF_MAX_PRICE_MULTIPLIER;
-  const minDcf = currentPrice * DCF_MIN_PRICE_MULTIPLIER;
-  const value = Math.max(minDcf, Math.min(maxDcf, dcfValue));
-  return { value, wasClamped: value !== dcfValue };
+  return Math.min(Math.max(growthRate, -50), cap) / 100;
 }
 
 export function calculateDCFValue(
   financials: StockFinancials,
-  currentPrice: number,
+  _currentPrice: number,
   classification: CompanyClassification
 ): { value: number; wasClamped: boolean } {
   if (financials.freeCashFlowPerShare <= 0) {
-    const fallback =
-      financials.eps > 0 ? financials.eps * DCF_EPS_FALLBACK_MULTIPLIER : 0;
-    return { value: fallback, wasClamped: false };
+    return { value: 0, wasClamped: false };
   }
 
   const stage1Growth = getStage1GrowthRate(
@@ -134,8 +119,7 @@ export function calculateDCFValue(
     (fcf * (1 + TERMINAL_GROWTH)) / (DISCOUNT_RATE - TERMINAL_GROWTH);
   dcfValue += terminalValue / Math.pow(1 + DISCOUNT_RATE, STAGE1_YEARS);
 
-  const clamped = clampDCFValue(dcfValue, currentPrice);
-  return clamped;
+  return { value: dcfValue, wasClamped: false };
 }
 
 export function getValuationWeights(
@@ -175,11 +159,12 @@ export function calculatePEGValue(
 ): number {
   if (financials.eps <= 0) return 0;
   if (classification !== "growth") return 0;
-  if (financials.growthRate < PEG_MIN_GROWTH) return 0;
+  if (financials.earningsGrowth == null || financials.earningsGrowth < PEG_MIN_GROWTH) return 0;
 
-  const growth = Math.max(financials.growthRate, PEG_MIN_GROWTH);
-  const targetPeg = clamp(financials.peg > 0 ? financials.peg : 1.2, 0.8, 2.5);
-  const fairPE = clamp(growth / targetPeg, 15, 45);
+  const growth = financials.earningsGrowth;
+  // PEG = PE / growth; target multiple is a model assumption, not current market PEG.
+  const targetPeg = 1.2;
+  const fairPE = clamp(growth * targetPeg, 15, 45);
   return financials.eps * fairPE;
 }
 
@@ -235,8 +220,7 @@ function calculateRoeQualityValue(financials: StockFinancials): number {
 
 function calculateDividendBookValue(financials: StockFinancials): number {
   if (financials.bookValuePerShare <= 0) return 0;
-  const pb = financials.pb > 0 ? financials.pb : 1;
-  const fairPB = clamp(pb * 0.85, 0.5, 2);
+  const fairPB = 1; // Book-value anchor; independent of the current market price.
   return financials.bookValuePerShare * fairPB;
 }
 
@@ -377,7 +361,7 @@ export function calculateFairValue(
     roeQualityValue * weights.roeQuality +
     dividendBookValue * weights.dividendBook;
 
-  const safeFairValue = fairValue > 0 ? fairValue : currentPrice;
+  const safeFairValue = Number.isFinite(fairValue) && fairValue > 0 ? fairValue : 0;
   const marginOfSafety =
     safeFairValue > 0
       ? ((safeFairValue - currentPrice) / safeFairValue) * 100

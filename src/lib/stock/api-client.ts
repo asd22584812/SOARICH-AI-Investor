@@ -1,6 +1,5 @@
 import type {
   HomeFeedResponse,
-  HomeMarketFeed,
   Market,
   StockAnalysis,
   WatchlistItem,
@@ -55,8 +54,8 @@ export async function fetchHomeMarketFeed(
   const data = await parseJson<HomeFeedResponse>(response);
   return (
     data ?? {
-      scanning: true,
-      message: "正在更新市場資料",
+      scanning: false,
+      message: "市場資料讀取失敗，請稍後重試",
       feed: {
         todayFocus: [],
         undervalued: [],
@@ -87,7 +86,7 @@ export async function fetchPopularStocks(
     message?: string;
     items: WatchlistItem[];
   }>(response);
-  return data ?? { scanning: true, message: "正在更新市場資料", items: [] };
+  return data ?? { scanning: false, message: "市場資料讀取失敗，請稍後重試", items: [] };
 }
 
 /** @deprecated Use fetchHomeMarketFeed */

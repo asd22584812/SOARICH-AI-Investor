@@ -45,7 +45,8 @@ function scoreGrowth(data: NormalizedFinancialData): {
   const pe = data.pe.value ?? 0;
   const grossMargin = data.grossMargin ?? 0;
   const industryText = `${data.sector ?? ""} ${data.industry ?? ""}`.toLowerCase();
-  const marketCap = data.marketCap ?? 0;
+  // USD thresholds cannot be applied to TWD without a verified FX rate.
+  const marketCap = data.currency === "USD" ? data.marketCap ?? 0 : 0;
 
   if (growth > 20) {
     score += 28;
@@ -95,7 +96,8 @@ function scoreQuality(data: NormalizedFinancialData): {
   const grossMargin = data.grossMargin ?? 0;
   const growth = data.revenueGrowth ?? 0;
   const pe = data.pe.value ?? 0;
-  const marketCap = data.marketCap ?? 0;
+  // USD thresholds cannot be applied to TWD without a verified FX rate.
+  const marketCap = data.currency === "USD" ? data.marketCap ?? 0 : 0;
   const industryText = `${data.sector ?? ""} ${data.industry ?? ""}`.toLowerCase();
 
   if (roe > 20) {

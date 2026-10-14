@@ -27,10 +27,10 @@ function toHomeStockCard(analysis: StockAnalysis): HomeStockCard {
     entryLabel: analysis.entryLabel,
     entrySignal: analysis.entrySignal,
     price: analysis.price,
-    fairPrice: analysis.valuation.fairPrice,
+    fairPrice: analysis.valuation.fairPrice!,
     undervaluedPercent: Math.max(
       0,
-      Math.round(analysis.valuation.marginOfSafety)
+      Math.round(analysis.valuation.marginOfSafety!)
     ),
     currency: analysis.currency,
   };
@@ -40,6 +40,9 @@ function eligibleAnalyses(analyses: StockAnalysis[]): StockAnalysis[] {
   return analyses.filter(
     (analysis) =>
       analysis.totalScore > 0 &&
+      analysis.companyClassification !== "insufficient_data" &&
+      analysis.valuation.fairPrice != null && analysis.valuation.fairPrice > 0 &&
+      analysis.valuation.marginOfSafety != null &&
       Number.isFinite(analysis.valuation.marginOfSafety)
   );
 }
@@ -86,7 +89,7 @@ function buildTodayFocusCandidates(
     .filter(
       (analysis) =>
         analysis.totalScore >= minRating &&
-        analysis.valuation.marginOfSafety >= minMos
+        analysis.valuation.marginOfSafety! >= minMos
     )
     .map((analysis) => ({
       analysis,
@@ -128,8 +131,8 @@ export function buildHomeMarketFeed(analyses: StockAnalysis[]): HomeMarketFeed {
   const feed: HomeMarketFeed = {
     todayFocus: pickTodayFocus(analyses, appearanceCount),
     undervalued: pickFromSorted(
-      [...pool].sort(
-        (a, b) => b.valuation.marginOfSafety - a.valuation.marginOfSafety
+      pool.filter((a) => a.valuation.marginOfSafety! > 0).sort(
+        (a, b) => b.valuation.marginOfSafety! - a.valuation.marginOfSafety!
       ),
       appearanceCount
     ),

@@ -1,5 +1,4 @@
 import type { StockAnalysis, WatchlistItem } from "@/types/stock";
-import { generateSparkline } from "@/lib/chart-utils";
 
 export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
   return {
@@ -13,10 +12,6 @@ export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
     aiScore: stock.totalScore,
     entryLabel: stock.entryLabel,
     entrySignal: stock.entrySignal,
-    sparkline: generateSparkline(
-      stock.symbol.charCodeAt(0) * 100,
-      20,
-      stock.changePercent >= 0 ? "up" : "down"
-    ),
+    sparkline: [], // Historical prices have not been fetched; never fabricate a trend.
   };
 }

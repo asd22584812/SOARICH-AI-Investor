@@ -15,15 +15,15 @@ export async function GET(request: NextRequest) {
 
   const scan = getScanStatus(market);
 
-  if (scan.scanning || !scan.hasData) {
+  if (!scan.hasData) {
     return NextResponse.json({
-      scanning: true,
-      message: "正在更新市場資料",
+      scanning: scan.scanning,
+      message: scan.scanning ? "正在更新市場資料" : "市場資料尚未就緒",
       items: [],
     });
   }
 
-  const analyses = getPopularStocks(market, Math.min(20, Math.max(1, limit)));
+  const analyses = getPopularStocks(market, Number.isFinite(limit) ? Math.min(20, Math.max(1, Math.floor(limit))) : 20);
   return NextResponse.json({
     scanning: false,
     items: analyses.map(toWatchlistItem),

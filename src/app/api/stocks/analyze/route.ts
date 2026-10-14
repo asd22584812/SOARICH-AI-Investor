@@ -3,7 +3,6 @@ import {
   analyzeStockInput,
   toStockAnalysis,
 } from "@/lib/stock/analyzer";
-import { getMockStock } from "@/lib/stock/mockData";
 import {
   buildStockInputFromYahoo,
   snapshotToNullableMetrics,
@@ -11,17 +10,6 @@ import {
 import { searchStock } from "@/lib/stock/yahoo";
 
 export const runtime = "nodejs";
-
-function shouldUseMockFallback(): boolean {
-  return process.env.STOCK_USE_MOCK_FALLBACK === "true";
-}
-
-function analyzeFromMock(query: string) {
-  const stock = getMockStock(query);
-  if (!stock) return null;
-  const result = analyzeStockInput(stock);
-  return toStockAnalysis(result, stock);
-}
 
 export async function GET(request: NextRequest) {
   const q =
@@ -36,10 +24,6 @@ export async function GET(request: NextRequest) {
   try {
     const snapshot = await searchStock(q);
     if (!snapshot) {
-      if (shouldUseMockFallback()) {
-        const mockAnalysis = analyzeFromMock(q);
-        if (mockAnalysis) return NextResponse.json(mockAnalysis);
-      }
       return NextResponse.json({ error: "找不到這檔股票" }, { status: 404 });
     }
 
@@ -61,10 +45,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[api/stocks/analyze]", error);
 
-    if (shouldUseMockFallback()) {
-      const mockAnalysis = analyzeFromMock(q);
-      if (mockAnalysis) return NextResponse.json(mockAnalysis);
-    }
 
     return NextResponse.json(
       { error: "分析失敗，請稍後再試。" },

@@ -1,4 +1,3 @@
-import fallbackTaiwanStocks from "@/data/fallbackTaiwanStocks.json";
 import { resolveTwseIndustryName } from "./tw-industry-codes";
 
 const TWSE_API_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L";
@@ -133,7 +132,9 @@ export async function fetchTwseStocks(): Promise<TaiwanStockRecord[]> {
     throw new Error(`TWSE API failed: ${response.status}`);
   }
   const rows = (await response.json()) as Array<Record<string, string>>;
-  return parseTwseRows(rows);
+  const stocks = parseTwseRows(rows);
+  if (!stocks.length) throw new Error("Invalid or empty TWSE list");
+  return stocks;
 }
 
 export async function fetchTpexStocks(): Promise<TaiwanStockRecord[]> {
@@ -145,15 +146,9 @@ export async function fetchTpexStocks(): Promise<TaiwanStockRecord[]> {
     SecuritiesCompanyCode?: string;
     CompanyName?: string;
   }>;
-  return parseTpexRows(rows);
-}
-
-function loadFallbackStocks(): TaiwanStockRecord[] {
-  return (fallbackTaiwanStocks as TaiwanStockRecord[]).map((stock) => ({
-    ...stock,
-    name: cleanName(stock.name),
-    shortName: cleanName(stock.shortName),
-  }));
+  const stocks = parseTpexRows(rows);
+  if (!stocks.length) throw new Error("Invalid or empty TPEx list");
+  return stocks;
 }
 
 async function fetchAllTaiwanStocksFromApis(): Promise<TaiwanStockRecord[]> {
@@ -209,16 +204,10 @@ export async function getAllTaiwanStocks(): Promise<TaiwanStockRecord[]> {
     return memoryCache.stocks;
   }
 
-  try {
-    const stocks = await fetchAllTaiwanStocksFromApis();
-    setTaiwanStockListMemoryCache(stocks);
-    return stocks;
-  } catch (error) {
-    console.error("[twStockList] OpenAPI fetch failed, using fallback:", error);
-    const fallback = loadFallbackStocks();
-    setTaiwanStockListMemoryCache(fallback);
-    return fallback;
-  }
+  const stocks = await fetchAllTaiwanStocksFromApis();
+  if (!stocks.length) throw new Error("Taiwan exchange lists returned no equities");
+  setTaiwanStockListMemoryCache(stocks);
+  return stocks;
 }
 
 function scoreTaiwanStock(stock: TaiwanStockRecord, query: string): number {

@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { MiniAreaChart } from "@/components/charts/mini-area-chart";
-import { SegmentControl } from "@/components/ui/segment-control";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import {
-  buildFlatAssetHistory,
   getPrimaryPortfolioTotals,
 } from "@/lib/portfolio/asset-overview";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
@@ -15,7 +12,6 @@ import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 export function AssetHero() {
   const { positions, computed, loading } = usePortfolio();
   const [hidden, setHidden] = useState(false);
-  const [period, setPeriod] = useState<"7D" | "30D">("7D");
 
   const isEmpty = positions.length === 0;
   const totals = computed ? getPrimaryPortfolioTotals(computed) : null;
@@ -24,12 +20,6 @@ export function AssetHero() {
   const dailyPnLPercent = totals?.dailyPnLPercent ?? 0;
   const currency = totals?.currency ?? "TWD";
   const positive = dailyPnL >= 0;
-
-  const chartData = useMemo(() => {
-    if (isEmpty || !totals) return [];
-    const days = period === "7D" ? 7 : 30;
-    return buildFlatAssetHistory(totalAssets, days);
-  }, [isEmpty, totals, period, totalAssets]);
 
   return (
     <section className="card-glass w-full rounded-3xl p-5">
@@ -81,27 +71,7 @@ export function AssetHero() {
         <p className="mt-4 text-center text-xs text-text-secondary">更新資產中...</p>
       )}
 
-      <div className="mt-5">
-        <SegmentControl
-          options={[
-            { value: "7D", label: "7日" },
-            { value: "30D", label: "30日" },
-          ]}
-          value={period}
-          onChange={setPeriod}
-        />
-        <div className="mt-3">
-          {isEmpty || chartData.length === 0 ? (
-            <div className="flex h-20 items-center justify-center rounded-2xl bg-bg-card-secondary/40">
-              <p className="px-4 text-center text-xs text-text-secondary">
-                新增持股後將開始追蹤績效曲線
-              </p>
-            </div>
-          ) : (
-            <MiniAreaChart data={chartData} positive={positive} height={80} />
-          )}
-        </div>
-      </div>
+      <p className="mt-5 text-center text-xs text-text-secondary">尚未累積歷史資產紀錄，暫不顯示績效曲線。</p>
     </section>
   );
 }

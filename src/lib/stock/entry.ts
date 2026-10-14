@@ -10,7 +10,7 @@ function clampScore(value: number): number {
 export function resolveValuationConfidence(
   fcfPerShareSource: FcfPerShareSource
 ): ValuationConfidence {
-  if (fcfPerShareSource === "eps_estimate") return "low";
+  if (fcfPerShareSource === "missing" || fcfPerShareSource === "eps_estimate") return "low";
   if (fcfPerShareSource === "operating_cashflow") return "medium";
   return "high";
 }

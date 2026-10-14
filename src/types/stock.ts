@@ -24,11 +24,11 @@ export interface AIScoreBreakdown {
 }
 
 export interface ValuationAnalysis {
-  safetyPrice: number;
-  fairPrice: number;
-  optimisticPrice: number;
-  dcfValue: number;
-  marginOfSafety: number;
+  safetyPrice: number | null;
+  fairPrice: number | null;
+  optimisticPrice: number | null;
+  dcfValue: number | null;
+  marginOfSafety: number | null;
   valuationModel?: string;
   valuationConfidence?: "high" | "medium" | "low";
   dcfWasClamped?: boolean;

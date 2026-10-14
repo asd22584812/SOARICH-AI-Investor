@@ -38,45 +38,32 @@ function HomePageContent() {
 
   useEffect(() => {
     let cancelled = false;
-
-    setLoadingFeed(true);
-    fetchHomeMarketFeed(marketFilter)
-      .then((result) => {
+    let timer: ReturnType<typeof setTimeout>;
+    async function refresh() {
+      try {
+        const result = await fetchHomeMarketFeed(marketFilter);
         if (cancelled) return;
         setFeed(result.feed);
         setSectionCounts(result.sectionCounts);
         setScanning(result.scanning);
         setScanMessage(result.message ?? null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingFeed(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [marketFilter]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setLoadingWatchlist(true);
-    fetchPopularStocks(marketFilter, 20)
-      .then((result) => {
-        if (cancelled) return;
-        setWatchlist(result.items);
-        if (result.scanning) {
-          setScanning(true);
-          setScanMessage(result.message ?? "正在更新市場資料");
+        const popular = await fetchPopularStocks(marketFilter, 20);
+        if (!cancelled) setWatchlist(popular.items);
+      } catch {
+        if (!cancelled) {
+          setScanning(false);
+          setScanMessage("市場資料讀取失敗，將稍後重試");
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingWatchlist(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+      } finally {
+        if (!cancelled) {
+          setLoadingFeed(false);
+          setLoadingWatchlist(false);
+          timer = setTimeout(refresh, 15000);
+        }
+      }
+    }
+    void refresh();
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [marketFilter]);
 
   const sectionSubtitle = (count: number) =>
@@ -99,7 +86,7 @@ function HomePageContent() {
         onChange={setMarketFilter}
       />
 
-      {scanning && (
+      {scanMessage && (
         <div className="rounded-2xl border border-brand/20 bg-brand/10 px-4 py-3 text-center text-sm text-brand">
           {scanMessage ?? "正在更新市場資料"}
         </div>
@@ -152,5 +139,6 @@ function HomePageContent() {
 }
 
 export default function HomePage() {
-  return <HomePageContent />;
+  const { marketFilter } = useMarketFilter();
+  return <HomePageContent key={marketFilter} />;
 }
