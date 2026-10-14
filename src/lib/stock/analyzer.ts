@@ -467,6 +467,7 @@ export function toStockAnalysis(
   const growthRate = metrics ? metrics.growthRate : stock.growthRate;
 
   const buffett: BuffettScore = {
+    actualDebtToEquity: stock.debtToEquity,
     score: result.buffettScore,
     roe: roe ?? 0,
     freeCashFlow: clampScore(

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import type { Market, StockAnalysis } from "@/types/stock";
 import { calculateRadarScore } from "@/lib/stock/home-feed";
 
@@ -41,7 +42,7 @@ export interface StockSnapshotRow {
   scanned_at: string;
 }
 
-const DB_DIR = process.env.MARKET_DATA_DIR ?? path.join(process.cwd(), "data");
+const DB_DIR = process.env.MARKET_DATA_DIR ?? (process.env.VERCEL ? path.join(os.tmpdir(), "soarich-market") : path.join(process.cwd(), "data"));
 const DB_PATH = path.join(DB_DIR, "market.db");
 
 let dbInstance: Database.Database | null = null;

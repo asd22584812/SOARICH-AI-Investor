@@ -33,3 +33,11 @@
 ## 套用修補檔（不部署）
 
 先確認儲存庫乾淨並更新 main，建立同名修復分支，再執行 `git am SOARICH-Investor-repair.patch`；若 main 已變更而衝突，先人工檢查衝突，不要強制覆蓋。執行 `npm ci`、`npm test`、`npm run build` 後才進行程式審查。修補檔不包含資料庫、node_modules、憑證或實際行情快照。
+
+## Preview follow-up — 2026-10-14
+
+- Vercel now opens SQLite in its writable temporary directory when MARKET_DATA_DIR is not set, instead of the deployed application directory. This is a preview compatibility fix, not shared durable storage: cold starts may restart scanning and separate function instances may have different snapshots. Production still requires a shared persistent database or a persistent scanner host.
+- Empty radar sections show the actual loading/error message instead of claiming no eligible stocks when retrieval failed.
+- Buffett panel explicitly labels its cash-flow score, displays actual debt/equity, formats ROE, and avoids implying Buffett endorsement.
+- Quote badge no longer claims LIVE without verifying quote freshness.
+- Preview endpoint could not be inspected anonymously due to Vercel Authentication. Current screenshots do not establish financial source freshness or validate the fair-value estimate.

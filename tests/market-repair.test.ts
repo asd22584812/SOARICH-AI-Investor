@@ -140,3 +140,9 @@ test("both markets scan exact symbols, retain good data on failure, and serializ
     assert.equal((await GET(new NextRequest("http://localhost/api/stocks/recommendations?market=XX"))).status, 400);
   } finally { db.getMarketDb().close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("Buffett panel exposes the actual debt/equity ratio, not a transformed percentage", () => {
+  const input = buildStockInputFromNormalized(financials())!;
+  const out = toStockAnalysis(analyzeStockInput(input), input, snapshotToNullableMetrics(financials()));
+  assert.equal(out.buffett.actualDebtToEquity, 0.03);
+});

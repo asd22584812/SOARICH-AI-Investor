@@ -99,6 +99,7 @@ function HomePageContent() {
       ) : (
         <>
           <HomeStockSection
+            emptyMessage={scanMessage ?? (scanning ? "市場掃描中，尚未產生結果" : undefined)}
             title={labels.todayFocus}
             subtitle={sectionSubtitle(sectionCounts.todayFocus)}
             items={feed.todayFocus}
@@ -106,6 +107,7 @@ function HomePageContent() {
             showUndervaluedBadge
           />
           <HomeStockSection
+            emptyMessage={scanMessage ?? (scanning ? "市場掃描中，尚未產生結果" : undefined)}
             title={labels.undervalued}
             subtitle={sectionSubtitle(sectionCounts.undervalued)}
             items={feed.undervalued}
@@ -113,12 +115,14 @@ function HomePageContent() {
             showUndervaluedBadge
           />
           <HomeStockSection
+            emptyMessage={scanMessage ?? (scanning ? "市場掃描中，尚未產生結果" : undefined)}
             title={labels.highQuality}
             subtitle={sectionSubtitle(sectionCounts.highQuality)}
             items={feed.highQuality}
             compact
           />
           <HomeStockSection
+            emptyMessage={scanMessage ?? (scanning ? "市場掃描中，尚未產生結果" : undefined)}
             title={labels.moat}
             subtitle={sectionSubtitle(sectionCounts.moat)}
             items={feed.moat}

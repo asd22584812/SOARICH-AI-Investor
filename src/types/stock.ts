@@ -57,6 +57,7 @@ export interface KeyPersonRisk {
 }
 
 export interface BuffettScore {
+  actualDebtToEquity?: number | null;
   score: number;
   roe: number;
   freeCashFlow: number;
