@@ -1,3 +1,4 @@
+import { isUndervaluedFocusEligible, isHighQualityWatchEligible } from "./entry";
 import type { HomeMarketFeed, HomeStockCard, StockAnalysis } from "@/types/stock";
 
 const SECTION_LIMIT = 5;
@@ -131,17 +132,17 @@ export function buildHomeMarketFeed(analyses: StockAnalysis[]): HomeMarketFeed {
   const feed: HomeMarketFeed = {
     todayFocus: pickTodayFocus(analyses, appearanceCount),
     undervalued: pickFromSorted(
-      pool.filter((a) => a.valuation.marginOfSafety! > 0).sort(
+      pool.filter((a) => isUndervaluedFocusEligible({ soarichRating: a.totalScore, marginOfSafety: a.valuation.marginOfSafety!, valuationScore: a.aiScore.valuation, insufficientData: false })).sort(
         (a, b) => b.valuation.marginOfSafety! - a.valuation.marginOfSafety!
       ),
       appearanceCount
     ),
     highQuality: pickFromSorted(
-      [...pool].sort((a, b) => b.totalScore - a.totalScore),
+      pool.filter((a) => isHighQualityWatchEligible({ soarichRating: a.totalScore, moatScore: a.moat.score, financialScore: a.aiScore.financials, insufficientData: false })).sort((a, b) => b.totalScore - a.totalScore),
       appearanceCount
     ),
     moat: pickFromSorted(
-      [...pool].sort((a, b) => b.moat.score - a.moat.score),
+      pool.filter((a) => a.moat.score >= 75).sort((a, b) => b.moat.score - a.moat.score),
       appearanceCount
     ),
   };

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   if (!scan.hasData) {
     const response: HomeFeedResponse = {
       scanning: scan.scanning,
-      message: scan.scanning ? "正在掃描市場資料" : scan.status === "failed" ? "市場資料取得失敗或資料不足，將稍後重試" : "市場資料尚未建立",
+      message: scan.scanning ? "正在掃描市場資料" : scan.status === "failed" ? `市場更新失敗：${getScanMeta(`batch_error_${market}`) || "資料不足"}，將自動重試` : "市場資料尚未建立",
       feed: EMPTY_FEED,
       sectionCounts: {
         todayFocus: 0,

@@ -120,10 +120,12 @@ async function fetchWithTimeout(
   url: string,
   timeoutMs = 15000
 ): Promise<Response> {
-  return fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  const source = url === TWSE_API_URL ? "TWSE 上市名單" : "TPEx 上櫃名單";
+  try {
+    return await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+  } catch {
+    throw new Error(`${source}連線失敗或逾時`);
+  }
 }
 
 export async function fetchTwseStocks(): Promise<TaiwanStockRecord[]> {

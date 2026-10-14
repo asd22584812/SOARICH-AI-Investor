@@ -38,6 +38,7 @@ export async function runMarketScan(
   if (!lease) return { runId: 0, processed: 0, succeeded: 0, failed: 0, total: 0, busy: true };
   const runId = startScanRun(market, 0);
   let processed = 0, succeeded = 0, failed = 0;
+  const failures: string[] = [];
   try {
     // Freeze the directory across batches; never select from a hard-coded pool.
     const cached = getScanMeta(`universe_${market}`);
@@ -53,13 +54,13 @@ export async function runMarketScan(
         const target = targets[pointer++];
         try {
           const snapshot = await deps.snapshot(target.yahooSymbol ?? target.query);
-          if (!snapshot || snapshot.market !== market) throw new Error("Missing or mismatched quote");
+          if (!snapshot || snapshot.market !== market) throw new Error("Yahoo 報價缺漏或市場不符");
           const input = buildStockInputFromYahoo(snapshot);
           if (!input) throw new Error("Missing current price");
           const result = analyzeStockInput(input);
           const analysis = toStockAnalysis(result, input, snapshotToNullableMetrics(snapshot.normalized));
           // A quote alone is not a successful financial-data refresh.
-          if (result.insufficientData) throw new Error("Incomplete or incompatible financial data");
+          if (result.insufficientData) throw new Error(`財務資料不足或幣別不相容：${snapshot.normalized.missingCriticalFields.join(", ")}`);
           upsertStockSnapshot(analysis, {
             yahooSymbol: snapshot.yahooSymbol,
             financialCurrency: snapshot.normalized.financialCurrency ?? "unknown",
@@ -68,7 +69,10 @@ export async function runMarketScan(
             marketCap: snapshot.normalized.marketCap, companyClassification: result.valuation.companyClassification,
           });
           succeeded++;
-        } catch { failed++; }
+        } catch (error) {
+          failed++;
+          if (failures.length < 2) failures.push(`${target.query}：${error instanceof Error ? error.message : "資料取得失敗"}`);
+        }
         processed++;
         updateScanProgress(runId, processed);
         lease = renewScanLease(market, lease!);
@@ -80,7 +84,7 @@ export async function runMarketScan(
     // Advance even when individual securities are unsuitable; retry the cycle later.
     setScanMeta(`cursor_${market}`, String(next >= universe.length ? 0 : next));
     setScanMeta(`cycle_completed_${market}`, next >= universe.length && succeeded > 0 ? new Date().toISOString() : "");
-    const error = failed ? `${failed}/${processed} 檔無法取得完整且相容的財務資料` : undefined;
+    const error = failed ? `${failed}/${processed} 檔資料失敗；${failures.join("；")}` : undefined;
     completeScanRun(runId, succeeded > 0 ? "completed" : "failed", error);
     setScanMeta(`batch_at_${market}`, new Date().toISOString());
     setScanMeta(`batch_error_${market}`, error ?? "");

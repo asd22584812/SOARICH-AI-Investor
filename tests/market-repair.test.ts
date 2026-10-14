@@ -146,3 +146,23 @@ test("Buffett panel exposes the actual debt/equity ratio, not a transformed perc
   const out = toStockAnalysis(analyzeStockInput(input), input, snapshotToNullableMetrics(financials()));
   assert.equal(out.buffett.actualDebtToEquity, 0.03);
 });
+
+test("low total scores cannot enter high-quality or undervalued focus even with a large discount", () => {
+  const input = buildStockInputFromNormalized(financials())!;
+  const out = toStockAnalysis(analyzeStockInput(input), input, snapshotToNullableMetrics(financials()));
+  out.totalScore = 63;
+  out.valuation.marginOfSafety = 47;
+  const feed = buildHomeMarketFeed([out]);
+  assert.equal(feed.highQuality.length, 0);
+  assert.equal(feed.undervalued.length, 0);
+});
+
+test("Taiwan directory failures identify the exchange instead of reporting an empty market", async () => {
+  const { fetchTwseStocks, fetchTpexStocks } = await import("../src/lib/stock/twStockList");
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("timeout"); };
+  try {
+    await assert.rejects(fetchTwseStocks(), /TWSE 上市名單/);
+    await assert.rejects(fetchTpexStocks(), /TPEx 上櫃名單/);
+  } finally { globalThis.fetch = original; }
+});

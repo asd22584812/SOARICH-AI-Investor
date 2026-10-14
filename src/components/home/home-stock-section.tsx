@@ -78,7 +78,7 @@ export function HomeStockSection({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   {showUndervaluedBadge && item.undervaluedPercent > 0 ? (
                     <span className="rounded-lg bg-success/10 px-2 py-1 text-xs font-medium text-success">
-                      低估 {item.undervaluedPercent}%
+                      低於模型估值 {item.undervaluedPercent}%
                     </span>
                   ) : (
                     <span className="text-xs text-text-secondary">{item.entryLabel}</span>
