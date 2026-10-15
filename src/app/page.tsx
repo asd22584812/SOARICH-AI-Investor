@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { HomeMarketFeed, WatchlistItem } from "@/types/stock";
 import {
   fetchHomeMarketFeed,
-  fetchPopularStocks,
 } from "@/lib/stock/api-client";
 import { AssetHero } from "@/components/home/asset-hero";
 import { SearchBar } from "@/components/home/search-bar";
@@ -38,17 +37,18 @@ function HomePageContent() {
 
   useEffect(() => {
     let cancelled = false;
+    let cursor: number | undefined;
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       try {
-        const result = await fetchHomeMarketFeed(marketFilter);
+        const result = await fetchHomeMarketFeed(marketFilter, cursor);
         if (cancelled) return;
+        cursor = result.nextCursor ?? cursor;
         setFeed(result.feed);
         setSectionCounts(result.sectionCounts);
         setScanning(result.scanning);
-        setScanMessage(result.message ?? null);
-        const popular = await fetchPopularStocks(marketFilter, 20);
-        if (!cancelled) setWatchlist(popular.items);
+        setScanMessage([result.message, result.universeCount ? `本輪掃描位置 ${result.nextCursor ?? 0} / ${result.universeCount}` : null].filter(Boolean).join("。") || null);
+        setWatchlist(result.popular ?? []);
       } catch {
         if (!cancelled) {
           setScanning(false);

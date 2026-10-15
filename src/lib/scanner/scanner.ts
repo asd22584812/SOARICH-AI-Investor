@@ -1,3 +1,4 @@
+import { getTaiwanDirectoryWarnings } from "@/lib/stock/twStockList";
 import type { Market } from "@/types/stock";
 import { analyzeStockInput, toStockAnalysis } from "@/lib/stock/analyzer";
 import {
@@ -43,6 +44,7 @@ export async function runMarketScan(
     // Freeze the directory across batches; never select from a hard-coded pool.
     const cached = getScanMeta(`universe_${market}`);
     const universe: UniverseSymbol[] = offset > 0 && cached ? JSON.parse(cached) : await deps.universe(market);
+    if (!(offset > 0 && cached)) setScanMeta(`directory_warning_${market}`, market === "TW" ? getTaiwanDirectoryWarnings().join("；") : "");
     if (!universe.length) throw new Error("Exchange directory is empty");
     setScanMeta(`universe_${market}`, JSON.stringify(universe));
     const targets = universe.slice(offset, options.limit ? offset + options.limit : undefined);
@@ -99,12 +101,12 @@ export async function runMarketScan(
 }
 
 /** Bounded request work, with a persisted cursor and cross-process lease. */
-export async function refreshMarketBatch(market: Market): Promise<void> {
+export async function refreshMarketBatch(market: Market, requestedOffset?: number): Promise<void> {
   const completed = Date.parse(getScanMeta(`cycle_completed_${market}`) ?? "");
   if (Date.now() - completed < 24 * 60 * 60 * 1000) return;
   const last = Date.parse(getScanMeta(`batch_at_${market}`) ?? "");
   const error = getScanMeta(`batch_error_${market}`);
   if (Date.now() - last < (error ? 60000 : 5000)) return;
-  const offset = Number(getScanMeta(`cursor_${market}`) ?? 0);
-  await runMarketScan(market, { offset, limit: 4, concurrency: 2, delayMs: 0 }).catch(() => {});
+  const offset = requestedOffset ?? Number(getScanMeta(`cursor_${market}`) ?? 0);
+  await runMarketScan(market, { offset, limit: 2, concurrency: 2, delayMs: 0 }).catch(() => {});
 }

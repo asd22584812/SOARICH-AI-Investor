@@ -196,7 +196,7 @@ function displaySymbolFromYahoo(
 }
 
 export async function fetchYahooQuote(yahooSymbol: string) {
-  return yahooFinance.quote(yahooSymbol, {}, { fetchOptions: { signal: AbortSignal.timeout(10000) } });
+  return yahooFinance.quote(yahooSymbol, {}, { fetchOptions: { signal: AbortSignal.timeout(20000) } });
 }
 
 export async function fetchYahooSummary(yahooSymbol: string) {
@@ -208,7 +208,7 @@ export async function fetchYahooSummary(yahooSymbol: string) {
       "defaultKeyStatistics",
       "assetProfile",
     ],
-  }, { fetchOptions: { signal: AbortSignal.timeout(10000) } });
+  }, { fetchOptions: { signal: AbortSignal.timeout(20000) } });
 }
 
 async function safeFetchYahooSummary(yahooSymbol: string) {

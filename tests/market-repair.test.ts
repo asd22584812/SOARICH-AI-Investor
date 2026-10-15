@@ -166,3 +166,19 @@ test("Taiwan directory failures identify the exchange instead of reporting an em
     await assert.rejects(fetchTpexStocks(), /TPEx 上櫃名單/);
   } finally { globalThis.fetch = original; }
 });
+
+test("one Taiwan exchange outage preserves the other official listing with an explicit coverage warning", async () => {
+  const { fetchAllTaiwanStocksFromApis, getTaiwanDirectoryWarnings } = await import("../src/lib/stock/twStockList");
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => String(url).includes("twse.com.tw")
+    ? Response.json([{ 公司代號: "9999", 公司名稱: "Test fixture", 產業別: "01" }])
+    : new Response("upstream TLS failure", { status: 525 });
+  try {
+    const stocks = await fetchAllTaiwanStocksFromApis();
+    assert.equal(stocks.length, 1);
+    assert.equal(stocks[0].yahooSuffix, ".TW");
+    assert.match(getTaiwanDirectoryWarnings().join(), /TPEx.*525/);
+    globalThis.fetch = async () => new Response("error", { status: 503 });
+    await assert.rejects(fetchAllTaiwanStocksFromApis());
+  } finally { globalThis.fetch = original; }
+});

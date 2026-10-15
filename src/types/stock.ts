@@ -134,6 +134,9 @@ export interface HomeMarketFeed {
 }
 
 export interface HomeFeedResponse {
+  nextCursor?: number;
+  universeCount?: number;
+  popular?: WatchlistItem[];
   scanning: boolean;
   message?: string;
   feed: HomeMarketFeed;

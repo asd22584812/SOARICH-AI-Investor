@@ -46,9 +46,9 @@ export async function searchStocksApi(
 }
 
 export async function fetchHomeMarketFeed(
-  market: Market
+  market: Market, cursor?: number
 ): Promise<HomeFeedResponse> {
-  const response = await fetch(`/api/stocks/recommendations?market=${market}`, {
+  const response = await fetch(`/api/stocks/recommendations?market=${market}${cursor == null ? "" : `&cursor=${cursor}`}`, {
     cache: "no-store",
   });
   const data = await parseJson<HomeFeedResponse>(response);
