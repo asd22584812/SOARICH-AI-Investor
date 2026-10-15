@@ -14,7 +14,7 @@ import {
   type YahooSummaryLike,
 } from "./normalizer";
 
-const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"], validation: { logErrors: false } });
 
 export interface NormalizedTicker {
   query: string;
@@ -499,4 +499,15 @@ export async function fetchExactStock(yahooSymbol: string): Promise<YahooStockSn
   const normalized = normalizedFromYahooSymbol(yahooSymbol, yahooSymbol);
   const snapshot = await tryBuildSnapshot(normalized, yahooSymbol);
   return snapshot?.yahooSymbol === yahooSymbol && snapshot.displaySymbol === normalized.displaySymbol ? snapshot : null;
+}
+
+// Yahoo occasionally adds fields before the library schema catches up.
+// Validate the small public contract ourselves; never accept missing prices or foreign markets.
+let usCandidatesCache: { until: number; promise: Promise<unknown> } | undefined;
+export async function fetchDynamicUsCandidates(): Promise<unknown> {
+  if (usCandidatesCache && usCandidatesCache.until > Date.now()) return usCandidatesCache.promise;
+  const promise = yahooFinance.screener({ scrIds: "undervalued_large_caps", count: 25 }, undefined,
+    { validateResult: false, fetchOptions: { signal: AbortSignal.timeout(20000) } });
+  usCandidatesCache = { until: Date.now() + 300000, promise };
+  try { return await promise; } catch (error) { usCandidatesCache = undefined; throw error; }
 }

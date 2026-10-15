@@ -24,7 +24,7 @@ export function StockPriceHeader({ stock }: StockPriceHeaderProps) {
         </div>
         <div className="rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-center">
           <p className="text-[10px] text-text-secondary">來源報價</p>
-          <p className="text-xs font-semibold text-brand">Yahoo</p>
+          <p className="text-xs font-semibold text-brand">{stock.quoteSource ?? "Yahoo"}</p>
         </div>
       </div>
 
@@ -43,7 +43,7 @@ export function StockPriceHeader({ stock }: StockPriceHeaderProps) {
           {positive ? "+" : ""}
           {formatCurrency(stock.change, stock.currency)} ({formatPercent(stock.changePercent)})
         </p> : <p className="mt-2 text-sm text-text-secondary">漲跌資料未提供</p>}
-        <p className="mt-3 text-xs text-text-secondary">報價時間：{stock.quoteAsOf ? new Date(stock.quoteAsOf).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }) + "（台北時間；不保證即時）" : "來源未提供，時效未確認"}</p>
+        <p className="mt-3 text-xs text-text-secondary">報價時間：{stock.quoteDate ? `${stock.quoteDate}（官方收盤價，非即時）` : stock.quoteAsOf ? new Date(stock.quoteAsOf).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }) + "（台北時間；不保證即時）" : "來源未提供，時效未確認"}</p>
       </div>
     </section>
   );

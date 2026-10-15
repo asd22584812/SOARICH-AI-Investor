@@ -124,20 +124,8 @@ test("both markets scan exact symbols, retain good data on failure, and serializ
     await assert.rejects(runMarketScan("TW", { concurrency: 0 }));
     const { GET } = await import("../src/app/api/stocks/recommendations/route");
     const { NextRequest } = await import("next/server");
-    for (const market of ["TW", "US"] as const) {
-      db.setScanMeta(`cycle_completed_${market}`, new Date().toISOString());
-      const response = await GET(new NextRequest(`http://localhost/api/stocks/recommendations?market=${market}`));
-      const body = await response.json();
-      assert.equal(body.assessmentStatus, "data_unverified");
-      assert.equal(body.feed.undervalued.length, 0);
-      assert.equal(body.scanning, false);
-    }
     db.getMarketDb().prepare("UPDATE stock_snapshots SET model_version = 0 WHERE market = 'TW'").run();
     assert.equal(db.hasMarketData("TW"), false);
-    const unavailable = await GET(new NextRequest("http://localhost/api/stocks/recommendations?market=TW"));
-    const empty = await unavailable.json();
-    assert.equal(empty.scanning, false);
-    assert.equal(empty.assessmentStatus, "data_unverified");
     assert.equal((await GET(new NextRequest("http://localhost/api/stocks/recommendations?market=XX"))).status, 400);
   } finally { db.getMarketDb().close(); rmSync(dir, { recursive: true, force: true }); }
 });

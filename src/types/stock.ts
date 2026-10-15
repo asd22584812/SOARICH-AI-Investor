@@ -15,6 +15,8 @@ export interface StockQuote {
   currency: "TWD" | "USD";
   changeAvailable?: boolean;
   quoteAsOf?: string | null;
+  quoteSource?: string;
+  quoteDate?: string | null;
 }
 
 export interface AIScoreBreakdown {
@@ -136,7 +138,8 @@ export interface HomeMarketFeed {
 }
 
 export interface HomeFeedResponse {
-  assessmentStatus?: "data_unverified";
+  researchRadar?: import("@/lib/research/radar").ResearchRadar;
+  assessmentStatus?: "data_unverified" | "research_only" | "source_error";
   nextCursor?: number;
   universeCount?: number;
   popular?: WatchlistItem[];
@@ -244,4 +247,7 @@ export interface StockResearchReport extends StockQuote {
   officialSourceUrl: string;
   valuationStatus: "unverified";
   valuationReasons: string[];
+  official?: import("@/lib/research/official").OfficialFinancials;
+  officialError?: string;
+  scenarioValuation?: import("@/lib/research/scenarios").ScenarioResult;
 }

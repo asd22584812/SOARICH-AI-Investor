@@ -6,6 +6,7 @@ import type { StockResearchReport } from "@/types/stock";
 import { fetchStockAnalysis } from "@/lib/stock/api-client";
 import { StockSearchField } from "@/components/home/stock-search-field";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
+import { OfficialFinancialsSection } from "@/components/analysis/official-financials";
 import { FinancialsSection } from "@/components/analysis/financials-section";
 
 function AnalysisContent() {
@@ -114,15 +115,16 @@ function AnalysisContent() {
       <StockPriceHeader stock={analysis} />
 
       <section className="glass-card rounded-3xl p-5 space-y-3">
-        <h2 className="font-semibold text-brand">暫無法判斷買入價格</h2>
+        <h2 className="font-semibold text-brand">{analysis.scenarioValuation?.status === "available" ? "已取得官方財報與情境試算" : "暫無法判斷買入價格"}</h2>
         {analysis.valuationReasons.map((reason) => <p key={reason} className="text-sm text-text-secondary">{reason}</p>)}
         <p className="text-sm text-text-secondary">護城河、關鍵人物與接班制度：尚未完成有來源的公司研究，不評分。</p>
       </section>
-      <FinancialsSection financials={analysis.financialProfile} currency={analysis.currency} financialCurrency={analysis.financialCurrency} />
+      {analysis.official ? <OfficialFinancialsSection data={analysis.official} scenario={analysis.scenarioValuation} /> : <p className="rounded-xl bg-brand/10 p-4 text-sm text-brand">官方財報未取得：{analysis.officialError ?? "資料尚未接入"}</p>}
+      {!analysis.quoteSource && <FinancialsSection financials={analysis.financialProfile} currency={analysis.currency} financialCurrency={analysis.financialCurrency} />}
       <section className="glass-card rounded-3xl p-5 space-y-3 text-sm">
         <h2 className="font-semibold">資料來源與核對</h2>
-        <p className="text-text-secondary">財報期間：尚未逐項核對。此處彙總指標不代表已完成財報分析。</p>
-        <a className="block text-brand underline" href={analysis.sourceUrl} target="_blank" rel="noopener noreferrer">Yahoo 財務資料（第三方來源）</a>
+        <p className="text-text-secondary">上方官方財報標示實際期間；第三方彙總指標的期間尚未逐項核對，不應與官方累計或年度數字直接比較。</p>
+        <a className="block text-brand underline" href={analysis.sourceUrl} target="_blank" rel="noopener noreferrer">{analysis.quoteSource ? "官方行情原始資料" : "Yahoo 財務資料（第三方來源）"}</a>
         <a className="block text-brand underline" href={analysis.officialSourceUrl} target="_blank" rel="noopener noreferrer">{analysis.market === "TW" ? "公開資訊觀測站" : "SEC EDGAR"}：以代號 {analysis.symbol} 查詢原始申報</a>
       </section>
     </div>
