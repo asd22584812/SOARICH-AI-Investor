@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  analyzeStockInput,
-  toStockAnalysis,
-} from "@/lib/stock/analyzer";
-import {
-  buildStockInputFromYahoo,
-  snapshotToNullableMetrics,
-} from "@/lib/stock/stock-input-builder";
+import { buildResearchReport } from "@/lib/stock/research-report";
 import { searchStock } from "@/lib/stock/yahoo";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const q =
@@ -24,24 +18,15 @@ export async function GET(request: NextRequest) {
   try {
     const snapshot = await searchStock(q);
     if (!snapshot) {
-      return NextResponse.json({ error: "找不到這檔股票" }, { status: 404 });
+      return NextResponse.json({ error: "未取得股票資料，請確認代號或稍後重試" }, { status: 502 });
     }
 
-    const stockInput = buildStockInputFromYahoo(snapshot);
-    if (!stockInput) {
-      return NextResponse.json({ error: "無法取得股價資料" }, { status: 404 });
+    const analysis = buildResearchReport(snapshot.normalized);
+    if (!analysis) {
+      return NextResponse.json({ error: "無法取得股價資料" }, { status: 502 });
     }
 
-    const result = analyzeStockInput(stockInput);
-    const analysis = toStockAnalysis(
-      result,
-      stockInput,
-      snapshot.normalized
-        ? snapshotToNullableMetrics(snapshot.normalized)
-        : undefined
-    );
-
-    return NextResponse.json(analysis);
+    return NextResponse.json(analysis, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[api/stocks/analyze]", error);
 

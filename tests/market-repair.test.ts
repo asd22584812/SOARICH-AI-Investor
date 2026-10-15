@@ -128,15 +128,16 @@ test("both markets scan exact symbols, retain good data on failure, and serializ
       db.setScanMeta(`cycle_completed_${market}`, new Date().toISOString());
       const response = await GET(new NextRequest(`http://localhost/api/stocks/recommendations?market=${market}`));
       const body = await response.json();
-      assert.ok(body.feed.undervalued.length > 0);
-      assert.equal(body.feed.undervalued[0].market, market);
+      assert.equal(body.assessmentStatus, "data_unverified");
+      assert.equal(body.feed.undervalued.length, 0);
+      assert.equal(body.scanning, false);
     }
     db.getMarketDb().prepare("UPDATE stock_snapshots SET model_version = 0 WHERE market = 'TW'").run();
     assert.equal(db.hasMarketData("TW"), false);
     const unavailable = await GET(new NextRequest("http://localhost/api/stocks/recommendations?market=TW"));
     const empty = await unavailable.json();
     assert.equal(empty.scanning, false);
-    assert.ok(empty.message.includes("失敗"));
+    assert.equal(empty.assessmentStatus, "data_unverified");
     assert.equal((await GET(new NextRequest("http://localhost/api/stocks/recommendations?market=XX"))).status, 400);
   } finally { db.getMarketDb().close(); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -181,4 +182,46 @@ test("one Taiwan exchange outage preserves the other official listing with an ex
     globalThis.fetch = async () => new Response("error", { status: 503 });
     await assert.rejects(fetchAllTaiwanStocksFromApis());
   } finally { globalThis.fetch = original; }
+});
+
+
+test("public research report cannot publish legacy ratings or fair prices in either market", async () => {
+  const { buildResearchReport } = await import("../src/lib/stock/research-report");
+  for (const market of ["TW", "US"] as const) {
+    const data = snapshot(market).normalized;
+    data.eps = -2;
+    data.roe = 0;
+    data.change = null;
+    data.changePercent = null;
+    const report = buildResearchReport(data)!;
+    assert.equal(report.valuationStatus, "unverified");
+    assert.equal(report.financialProfile.eps, -2);
+    assert.equal(report.financialProfile.roe, 0);
+    assert.equal(report.changeAvailable, false);
+    for (const field of ["totalScore", "aiScore", "buffett", "keyPersonRisk", "moat", "valuation", "entrySignal", "aiConclusion"]) assert.equal(field in report, false);
+    assert.equal("score" in report.financialProfile, false);
+    assert.equal(report.quoteAsOf, null);
+    assert.match(report.sourceUrl, /^https:\/\/finance.yahoo.com\//);
+  }
+});
+
+test("unknown or mismatched financial currency is disclosed without fabricated conversion", async () => {
+  const { buildResearchReport } = await import("../src/lib/stock/research-report");
+  const data = financials();
+  data.financialCurrency = "TWD";
+  data.currencyMismatch = true;
+  const report = buildResearchReport(data)!;
+  assert.equal(report.currency, "USD");
+  assert.equal(report.financialCurrency, "TWD");
+  assert.ok(report.valuationReasons.some((reason) => reason.includes("混幣")));
+  data.currentPrice = NaN;
+  assert.equal(buildResearchReport(data), null);
+});
+
+test("quote timestamp comes from the provider, never the current fetch time", async () => {
+  const { normalizeQuoteTime } = await import("../src/lib/stock/normalizer");
+  assert.equal(normalizeQuoteTime(undefined), null);
+  assert.equal(normalizeQuoteTime("bad date"), null);
+  assert.equal(normalizeQuoteTime(1700000000), new Date(1700000000000).toISOString());
+  assert.equal(normalizeQuoteTime(new Date(1700000000000)), new Date(1700000000000).toISOString());
 });

@@ -13,6 +13,8 @@ export interface StockQuote {
   change: number;
   changePercent: number;
   currency: "TWD" | "USD";
+  changeAvailable?: boolean;
+  quoteAsOf?: string | null;
 }
 
 export interface AIScoreBreakdown {
@@ -134,6 +136,7 @@ export interface HomeMarketFeed {
 }
 
 export interface HomeFeedResponse {
+  assessmentStatus?: "data_unverified";
   nextCursor?: number;
   universeCount?: number;
   popular?: WatchlistItem[];
@@ -153,7 +156,7 @@ export interface HomeFeedResponse {
 export type AIRecommendation = HomeStockCard;
 
 export interface WatchlistItem extends StockQuote {
-  aiScore: number;
+  aiScore: number | null;
   entryLabel: string;
   entrySignal: EntrySignal;
   sparkline: number[];
@@ -230,4 +233,15 @@ export interface AssetOverview {
   dailyPnL: number;
   dailyPnLPercent: number;
   currency: "TWD" | "USD";
+}
+
+/** Public research response: raw vendor observations, never legacy heuristic ratings. */
+export interface StockResearchReport extends StockQuote {
+  industry: string | null;
+  financialProfile: Omit<FinancialProfile, "score">;
+  financialCurrency: string | null;
+  sourceUrl: string;
+  officialSourceUrl: string;
+  valuationStatus: "unverified";
+  valuationReasons: string[];
 }

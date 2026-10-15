@@ -32,7 +32,7 @@ export function StockPriceHeader({ stock }: StockPriceHeaderProps) {
         <p className="text-[2.35rem] font-semibold leading-none tracking-tight text-text-primary">
           {formatCurrency(stock.price, stock.currency)}
         </p>
-        <p
+        {stock.changeAvailable !== false ? <p
           className={cn(
             "mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
             positive
@@ -42,7 +42,8 @@ export function StockPriceHeader({ stock }: StockPriceHeaderProps) {
         >
           {positive ? "+" : ""}
           {formatCurrency(stock.change, stock.currency)} ({formatPercent(stock.changePercent)})
-        </p>
+        </p> : <p className="mt-2 text-sm text-text-secondary">漲跌資料未提供</p>}
+        <p className="mt-3 text-xs text-text-secondary">報價時間：{stock.quoteAsOf ? new Date(stock.quoteAsOf).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }) + "（台北時間；不保證即時）" : "來源未提供，時效未確認"}</p>
       </div>
     </section>
   );

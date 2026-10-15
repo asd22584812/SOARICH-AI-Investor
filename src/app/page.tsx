@@ -22,6 +22,7 @@ const EMPTY_FEED: HomeMarketFeed = {
 
 function HomePageContent() {
   const { marketFilter, setMarketFilter, labels } = useMarketFilter();
+  const [assessmentBlocked, setAssessmentBlocked] = useState(false);
   const [feed, setFeed] = useState<HomeMarketFeed>(EMPTY_FEED);
   const [sectionCounts, setSectionCounts] = useState({
     todayFocus: 0,
@@ -38,11 +39,14 @@ function HomePageContent() {
   useEffect(() => {
     let cancelled = false;
     let cursor: number | undefined;
+    let blocked = false;
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       try {
         const result = await fetchHomeMarketFeed(marketFilter, cursor);
         if (cancelled) return;
+        blocked = result.assessmentStatus === "data_unverified";
+        setAssessmentBlocked(blocked);
         cursor = result.nextCursor ?? cursor;
         setFeed(result.feed);
         setSectionCounts(result.sectionCounts);
@@ -58,7 +62,7 @@ function HomePageContent() {
         if (!cancelled) {
           setLoadingFeed(false);
           setLoadingWatchlist(false);
-          timer = setTimeout(refresh, 15000);
+          if (!blocked) timer = setTimeout(refresh, 15000);
         }
       }
     }
@@ -92,7 +96,15 @@ function HomePageContent() {
         </div>
       )}
 
-      {loadingFeed ? (
+      {assessmentBlocked ? (
+        <section className="glass-card rounded-3xl p-5 space-y-3 text-sm text-text-secondary">
+          <h2 className="font-semibold text-text-primary">選股資料尚未通過核對</h2>
+          <p>低於保守估值：需要財報期間、幣別與估值假設。</p>
+          <p>品質與合理價：需要多年獲利與現金流資料。</p>
+          <p>成長改善觀察：需要可比較的歷年及近期財報。</p>
+          <p>目前不提供勝率、保證獲利或無來源的評分。</p>
+        </section>
+      ) : loadingFeed ? (
         <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
           載入市場資料中...
         </div>
@@ -131,13 +143,13 @@ function HomePageContent() {
         </>
       )}
 
-      {loadingWatchlist ? (
+      {!assessmentBlocked && (loadingWatchlist ? (
         <div className="rounded-2xl bg-bg-card-secondary/60 px-4 py-8 text-center text-sm text-text-secondary">
           載入熱門股票中...
         </div>
       ) : (
         <WatchlistCards items={watchlist} compact horizontal />
-      )}
+      ))}
     </div>
   );
 }

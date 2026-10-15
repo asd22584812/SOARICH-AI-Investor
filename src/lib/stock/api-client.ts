@@ -1,7 +1,7 @@
 import type {
   HomeFeedResponse,
   Market,
-  StockAnalysis,
+  StockResearchReport,
   WatchlistItem,
 } from "@/types/stock";
 
@@ -23,12 +23,12 @@ async function parseJson<T>(response: Response): Promise<T | null> {
 
 export async function fetchStockAnalysis(
   query: string
-): Promise<StockAnalysis | null> {
+): Promise<StockResearchReport | null> {
   const response = await fetch(
     `/api/stocks/analyze?q=${encodeURIComponent(query)}`,
     { cache: "no-store" }
   );
-  return parseJson<StockAnalysis>(response);
+  return parseJson<StockResearchReport>(response);
 }
 
 export async function searchStocksApi(

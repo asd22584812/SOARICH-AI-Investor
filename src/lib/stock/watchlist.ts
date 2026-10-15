@@ -1,6 +1,6 @@
-import type { StockAnalysis, WatchlistItem } from "@/types/stock";
+import type { StockAnalysis, StockResearchReport, WatchlistItem } from "@/types/stock";
 
-export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
+export function toWatchlistItem(stock: StockAnalysis | StockResearchReport): WatchlistItem {
   return {
     symbol: stock.symbol,
     name: stock.name,
@@ -9,9 +9,11 @@ export function toWatchlistItem(stock: StockAnalysis): WatchlistItem {
     change: stock.change,
     changePercent: stock.changePercent,
     currency: stock.currency,
-    aiScore: stock.totalScore,
-    entryLabel: stock.entryLabel,
-    entrySignal: stock.entrySignal,
+    changeAvailable: stock.changeAvailable,
+    quoteAsOf: stock.quoteAsOf,
+    aiScore: null,
+    entryLabel: "待財報核對",
+    entrySignal: "cautious",
     sparkline: [], // Historical prices have not been fetched; never fabricate a trend.
   };
 }

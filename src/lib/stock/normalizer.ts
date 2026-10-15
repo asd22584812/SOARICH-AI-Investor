@@ -40,6 +40,7 @@ export interface NormalizedFinancialData {
   name: string;
   market: Market;
   currency: "TWD" | "USD";
+  quoteAsOf?: string | null;
   financialCurrency?: string | null;
   currencyMismatch?: boolean;
   quoteType?: string | null;
@@ -195,6 +196,7 @@ export type YahooQuoteLike = {
   shortName?: string;
   longName?: string;
   currency?: string;
+  regularMarketTime?: Date | number | string;
   regularMarketPrice?: number;
   regularMarketChange?: number;
   regularMarketChangePercent?: number;
@@ -209,6 +211,7 @@ export type YahooSummaryLike = {
     quoteType?: string;
     shortName?: string;
     longName?: string;
+    regularMarketTime?: Date | number | string;
     regularMarketPrice?: number;
     regularMarketChange?: number;
     regularMarketChangePercent?: number;
@@ -384,6 +387,7 @@ export function normalizeFinancials(input: {
     name: input.name ?? fromQuote.name ?? fromSummary.name ?? input.displaySymbol,
     market: input.market,
     currency: input.currency,
+    quoteAsOf: normalizeQuoteTime(input.quote?.regularMarketTime ?? input.summary?.price?.regularMarketTime),
     financialCurrency,
     currencyMismatch,
     quoteType,
@@ -441,4 +445,10 @@ export function normalizeFinancials(input: {
   if (currencyMismatch) base.missingCriticalFields.push("financialCurrency");
   if (quoteType !== "EQUITY") base.missingCriticalFields.push("unsupportedQuoteType");
   return base;
+}
+
+export function normalizeQuoteTime(value: Date | number | string | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(typeof value === "number" ? value * 1000 : value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
