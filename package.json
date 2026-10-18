@@ -10,7 +10,8 @@
     "scan:market": "tsx scripts/run-market-scan.mjs",
     "scan:all": "tsx scripts/run-daily-scan.mjs",
     "scan:daily": "tsx scripts/run-daily-scan.mjs",
-    "audit:system": "tsx scripts/full-system-audit.mjs"
+    "audit:system": "tsx scripts/full-system-audit.mjs",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.0",

@@ -15,6 +15,9 @@ export function PriceRangeBar({
   currentPrice,
   currency,
 }: PriceRangeBarProps) {
+  if (valuation.fairPrice == null || valuation.safetyPrice == null || valuation.optimisticPrice == null || valuation.marginOfSafety == null) {
+    return <p className="p-4 text-sm text-text-secondary">資料不足或幣別／商品類型不適用，暫不提供合理價與安全邊際。</p>;
+  }
   const min = valuation.safetyPrice * 0.9;
   const max = valuation.optimisticPrice * 1.08;
   const range = max - min;

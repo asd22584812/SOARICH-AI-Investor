@@ -16,6 +16,7 @@ export function Sparkline({
   className,
   height = 40,
 }: SparklineProps) {
+  if (data.length < 2) return <span className="text-xs text-text-secondary">無歷史行情</span>;
   const chartData = data.map((v, i) => ({ i, v }));
   const color = positive ? "#22C55E" : "#EF4444";
 

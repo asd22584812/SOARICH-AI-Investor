@@ -2,19 +2,12 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { StockAnalysis } from "@/types/stock";
+import type { StockResearchReport } from "@/types/stock";
 import { fetchStockAnalysis } from "@/lib/stock/api-client";
 import { StockSearchField } from "@/components/home/stock-search-field";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
-import { AIScoreSection } from "@/components/analysis/ai-score-section";
-import { BuySignalHero } from "@/components/analysis/buy-signal-hero";
-import { ValuationSection } from "@/components/analysis/valuation-section";
-import { MarginOfSafetySection } from "@/components/analysis/margin-of-safety-section";
-import { MoatSection } from "@/components/analysis/moat-section";
+import { OfficialFinancialsSection } from "@/components/analysis/official-financials";
 import { FinancialsSection } from "@/components/analysis/financials-section";
-import { BuffettSection } from "@/components/analysis/buffett-section";
-import { KeyPersonSection } from "@/components/analysis/key-person-section";
-import { AIConclusionHero } from "@/components/analysis/ai-conclusion-hero";
 
 function AnalysisContent() {
   const router = useRouter();
@@ -22,7 +15,8 @@ function AnalysisContent() {
   const initialSymbol = searchParams.get("symbol") ?? "";
   const [symbol, setSymbol] = useState(initialSymbol);
   const [query, setQuery] = useState(initialSymbol);
-  const [analysis, setAnalysis] = useState<StockAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<StockResearchReport | null>(null);
+  const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -35,6 +29,7 @@ function AnalysisContent() {
       return;
     }
 
+    let cancelled = false;
     setSymbol(loadSymbol);
     setQuery(loadSymbol);
     setLoading(true);
@@ -42,6 +37,7 @@ function AnalysisContent() {
 
     fetchStockAnalysis(loadSymbol)
       .then((result) => {
+        if (cancelled) return;
         if (!result) {
           setAnalysis(null);
           setNotFound(true);
@@ -52,39 +48,19 @@ function AnalysisContent() {
         setSymbol(result.symbol);
       })
       .catch(() => {
+        if (cancelled) return;
         setAnalysis(null);
         setNotFound(true);
       })
-      .finally(() => setLoading(false));
-  }, [initialSymbol]);
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [initialSymbol, reload]);
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     const trimmed = symbol.trim();
     if (!trimmed) return;
-
-    setLoading(true);
-    setNotFound(false);
-
-    try {
-      const result = await fetchStockAnalysis(trimmed);
-      if (!result) {
-        setAnalysis(null);
-        setQuery(trimmed);
-        setNotFound(true);
-        return;
-      }
-
-      setAnalysis(result);
-      setQuery(result.symbol);
-      setSymbol(result.symbol);
-      router.replace(`/analysis?symbol=${encodeURIComponent(result.symbol)}`);
-    } catch {
-      setAnalysis(null);
-      setQuery(trimmed);
-      setNotFound(true);
-    } finally {
-      setLoading(false);
-    }
+    if (trimmed === initialSymbol) setReload((value) => value + 1);
+    else router.replace(`/analysis?symbol=${encodeURIComponent(trimmed)}`);
   };
 
   if (!query && !analysis && !loading) {
@@ -124,7 +100,7 @@ function AnalysisContent() {
         </header>
         <SearchInput symbol={symbol} setSymbol={setSymbol} onSearch={handleSearch} />
         <div className="rounded-2xl bg-danger/10 p-8 text-center">
-          <p className="text-danger">找不到這檔股票，請確認代號或名稱。</p>
+          <p className="text-danger">未取得這檔股票的資料。請確認代號；也可能是來源暫時無法連線。</p>
         </div>
       </div>
     );
@@ -138,31 +114,19 @@ function AnalysisContent() {
 
       <StockPriceHeader stock={analysis} />
 
-      <AIScoreSection
-        totalScore={analysis.totalScore}
-        scores={analysis.aiScore}
-        managementIsEstimate={analysis.managementIsEstimate}
-      />
-
-      <BuySignalHero signal={analysis.entrySignal} entryLabel={analysis.entryLabel} />
-
-      <ValuationSection
-        valuation={analysis.valuation}
-        currentPrice={analysis.price}
-        currency={analysis.currency}
-      />
-
-      <MarginOfSafetySection valuation={analysis.valuation} />
-
-      <MoatSection moat={analysis.moat} />
-
-      <FinancialsSection financials={analysis.financialProfile} />
-
-      <BuffettSection buffett={analysis.buffett} />
-
-      <KeyPersonSection risk={analysis.keyPersonRisk} />
-
-      <AIConclusionHero analysis={analysis} />
+      <section className="glass-card rounded-3xl p-5 space-y-3">
+        <h2 className="font-semibold text-brand">{analysis.scenarioValuation?.status === "available" ? "已取得官方財報與情境試算" : "暫無法判斷買入價格"}</h2>
+        {analysis.valuationReasons.map((reason) => <p key={reason} className="text-sm text-text-secondary">{reason}</p>)}
+        <p className="text-sm text-text-secondary">護城河、關鍵人物與接班制度：尚未完成有來源的公司研究，不評分。</p>
+      </section>
+      {analysis.official ? <OfficialFinancialsSection data={analysis.official} scenario={analysis.scenarioValuation} /> : <p className="rounded-xl bg-brand/10 p-4 text-sm text-brand">官方財報未取得：{analysis.officialError ?? "資料尚未接入"}</p>}
+      {!analysis.quoteSource && <FinancialsSection financials={analysis.financialProfile} currency={analysis.currency} financialCurrency={analysis.financialCurrency} />}
+      <section className="glass-card rounded-3xl p-5 space-y-3 text-sm">
+        <h2 className="font-semibold">資料來源與核對</h2>
+        <p className="text-text-secondary">上方官方財報標示實際期間；第三方彙總指標的期間尚未逐項核對，不應與官方累計或年度數字直接比較。</p>
+        <a className="block text-brand underline" href={analysis.sourceUrl} target="_blank" rel="noopener noreferrer">{analysis.quoteSource ? "官方行情原始資料" : "Yahoo 財務資料（第三方來源）"}</a>
+        <a className="block text-brand underline" href={analysis.officialSourceUrl} target="_blank" rel="noopener noreferrer">{analysis.market === "TW" ? "公開資訊觀測站" : "SEC EDGAR"}：以代號 {analysis.symbol} 查詢原始申報</a>
+      </section>
     </div>
   );
 }

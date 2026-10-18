@@ -96,14 +96,11 @@ function WatchlistCard({
               positive ? "text-success" : "text-danger"
             )}
           >
-            {formatPercent(item.changePercent)}
+            {item.changeAvailable === false ? "漲跌資料未提供" : formatPercent(item.changePercent)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <div className="text-right">
-            <p className="text-[10px] text-text-secondary">綜合評級</p>
-            <p className="text-sm font-bold text-brand">{item.aiScore}</p>
-          </div>
+
           <span
             className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${signal.bg} ${signal.border} ${signal.color}`}
           >

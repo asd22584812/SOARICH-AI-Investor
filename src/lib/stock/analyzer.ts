@@ -37,6 +37,7 @@ function toFinancials(stock: StockInput): StockFinancials {
     bookValuePerShare: stock.bookValuePerShare,
     freeCashFlowPerShare: stock.freeCashFlowPerShare,
     growthRate: stock.growthRate,
+    earningsGrowth: stock.earningsGrowth,
     roe: stock.roe,
     roa: stock.roa,
     grossMargin: stock.grossMargin,
@@ -255,7 +256,7 @@ function buildAIConclusion(
     ],
     growthOutlook: result.insufficientData
       ? `${stock.name} 關鍵財務資料不足，暫無法提供完整成長展望。`
-      : `${stock.name} 預估年化成長率約 ${stock.growthRate.toFixed(1)}%，${stock.growthRate >= 15 ? "中長期成長動能仍強" : "成長趨於穩健"}。`,
+      : `${stock.name} 來源所列營收成長率為 ${stock.growthRate.toFixed(1)}%，${stock.growthRate >= 15 ? "中長期成長動能仍強" : "成長趨於穩健"}。`,
     summary: result.aiSummary,
   };
 }
@@ -292,9 +293,9 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
         pegValue: 0,
         pbValue: 0,
         fcfMultipleValue: 0,
-        fairValue: stock.currentPrice,
-        safetyPrice: stock.currentPrice,
-        bullCasePrice: stock.currentPrice,
+        fairValue: 0,
+        safetyPrice: 0,
+        bullCasePrice: 0,
         marginOfSafety: 0,
         companyClassification: "insufficient_data",
         weights: {
@@ -341,6 +342,7 @@ export function analyzeStockInput(stock: StockInput): StockAnalysisResult {
       fcfEstimate: stock.fcfPerShareSource === "eps_estimate",
     }
   );
+  if (!(valuation.fairValue > 0)) return analyzeStockInput({ ...stock, insufficientData: true });
   const moat = calculateMoatScore(stock);
   const financialScore = calculateFinancialScore(stock);
   const growthScore = calculateGrowthScore(stock);
@@ -462,10 +464,10 @@ export function toStockAnalysis(
     };
 
   const roe = metrics?.roe ?? stock.roe;
-  const roa = metrics?.roa ?? stock.roa;
-  const growthRate = metrics?.growthRate ?? stock.growthRate;
+  const growthRate = metrics ? metrics.growthRate : stock.growthRate;
 
   const buffett: BuffettScore = {
+    actualDebtToEquity: stock.debtToEquity,
     score: result.buffettScore,
     roe: roe ?? 0,
     freeCashFlow: clampScore(
@@ -509,11 +511,11 @@ export function toStockAnalysis(
       valuation: result.valuationScore,
     },
     valuation: {
-      safetyPrice: result.valuation.safetyPrice,
-      fairPrice: result.valuation.fairValue,
-      optimisticPrice: result.valuation.bullCasePrice,
-      dcfValue: result.valuation.dcfValue,
-      marginOfSafety: result.valuation.marginOfSafety,
+      safetyPrice: result.insufficientData ? null : result.valuation.safetyPrice,
+      fairPrice: result.insufficientData ? null : result.valuation.fairValue,
+      optimisticPrice: result.insufficientData ? null : result.valuation.bullCasePrice,
+      dcfValue: result.insufficientData ? null : result.valuation.dcfValue,
+      marginOfSafety: result.insufficientData ? null : result.valuation.marginOfSafety,
       valuationModel: describeValuationModel(
         result.valuation.companyClassification,
         result.valuation.weights
@@ -540,7 +542,7 @@ export function toStockAnalysis(
       ...aiConclusion,
       growthOutlook: result.insufficientData
         ? `${stock.name} 資料不足，暫不評級。`
-        : growthRate > 0
+        : growthRate != null
           ? aiConclusion.growthOutlook
           : `${stock.name} 成長率資料暫缺（N/A），建議搭配最新財報確認。`,
       summary: result.aiSummary,
@@ -556,7 +558,7 @@ export function toStockAnalysis(
         (stock.operatingMargin > 0 ? stock.operatingMargin : null),
       debtToEquity: metrics?.debtToEquity ?? stock.debtToEquity,
       eps: metrics?.eps ?? (stock.eps > 0 ? stock.eps : null),
-      growthRate: metrics?.growthRate ?? (stock.growthRate > 0 ? stock.growthRate : null),
+      growthRate: metrics?.growthRate ?? (stock.growthRate != null ? stock.growthRate : null),
       pe: metrics?.pe ?? (stock.pe > 0 ? stock.pe : null),
       pb: metrics?.pb ?? (stock.pb > 0 ? stock.pb : null),
       marketCap: metrics?.marketCap ?? stock.marketCap,

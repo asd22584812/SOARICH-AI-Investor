@@ -1,114 +1,54 @@
 import type { Market } from "@/types/stock";
 import { getAllTaiwanStocks } from "@/lib/stock/twStockList";
 
-const SP500_CSV_URL =
-  "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv";
-
-const NASDAQ100_CSV_URL =
-  "https://raw.githubusercontent.com/datasets/nasdaq-listings/main/data/nasdaq-listed.csv";
-
-/** Fallback Nasdaq 100 symbols if remote fetch fails */
-const NASDAQ100_FALLBACK = [
-  "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "GOOGL", "TSLA", "AVGO", "COST",
-  "NFLX", "AMD", "ADBE", "PEP", "CSCO", "INTC", "CMCSA", "TXN", "QCOM", "INTU",
-  "AMGN", "HON", "AMAT", "BKNG", "ISRG", "VRTX", "ADP", "GILD", "MU", "LRCX",
-  "PANW", "REGN", "MDLZ", "ADI", "KLAC", "SNPS", "CDNS", "MELI", "PYPL", "CRWD",
-  "MAR", "CSX", "ORLY", "ABNB", "FTNT", "ADSK", "CHTR", "MNST", "WDAY", "PCAR",
-  "CPRT", "NXPI", "AEP", "ROP", "FAST", "ROST", "BKR", "EXC", "XEL", "PAYX",
-  "ODFL", "KDP", "EA", "CTSH", "GEHC", "VRSK", "LULU", "KHC", "CSGP", "DXCM",
-  "MCHP", "BIIB", "IDXX", "TTWO", "ON", "ANSS", "CDW", "GFS", "WBD", "ZS",
-  "DDOG", "TEAM", "ILMN", "SIRI", "ENPH", "ALGN", "MRVL", "DLTR", "EBAY", "SPLK",
-  "WBA", "LCID", "RIVN", "OKTA", "DOCU", "ZM", "SGEN", "FANG", "MRNA", "ARM",
-];
-
-const SP500_FALLBACK = [
-  "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "BRK-B", "TSLA", "UNH", "JPM",
-  "V", "XOM", "JNJ", "WMT", "MA", "PG", "HD", "CVX", "MRK", "ABBV",
-  "KO", "PEP", "COST", "AVGO", "LLY", "TMO", "MCD", "CSCO", "ACN", "ABT",
-  "DHR", "WFC", "BAC", "CRM", "LIN", "AMD", "DIS", "TXN", "PM", "NEE",
-  "RTX", "HON", "UPS", "IBM", "QCOM", "INTU", "AMAT", "CAT", "GE", "MS",
-];
-
 export interface UniverseSymbol {
   query: string;
   market: Market;
   yahooSymbol?: string;
 }
 
-function parseCsvSymbols(csv: string, symbolColumn = "Symbol"): string[] {
-  const lines = csv.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
-  const symbolIndex = headers.findIndex(
-    (h) => h.toLowerCase() === symbolColumn.toLowerCase()
-  );
-  if (symbolIndex < 0) return [];
-
-  const symbols: string[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-    if (!cols?.[symbolIndex]) continue;
-    const symbol = cols[symbolIndex].replace(/"/g, "").trim();
-    if (symbol) symbols.push(symbol);
+// Official current listings, not a hand-picked pool or a fallback constituent list.
+export function parseNasdaqDirectory(text: string, symbolColumn: string): string[] {
+  const [header, ...lines] = text.trim().split(/\r?\n/);
+  const columns = header.split("|");
+  for (const required of [symbolColumn, "ETF", "Test Issue", "Security Name"]) {
+    if (!columns.includes(required)) throw new Error(`Invalid Nasdaq directory: ${required}`);
   }
+  const get = (row: string[], key: string) => row[columns.indexOf(key)]?.trim();
+  return lines.flatMap((line) => {
+    const row = line.split("|");
+    if (get(row, "Test Issue") !== "N" || get(row, "ETF") !== "N") return [];
+    const symbol = get(row, symbolColumn);
+    const name = get(row, "Security Name") ?? "";
+    if (!symbol || !/^[A-Z]+(?:[.-][A-Z])?$/.test(symbol)) return [];
+    if (/warrant|preferred|\bunits?\b|\bright(s)?\b|\bnote(s)?\b/i.test(name)) return [];
+    return [symbol.replace(".", "-")];
+  });
+}
+
+async function fetchDirectory(file: string, column: string): Promise<string[]> {
+  const response = await fetch(`https://www.nasdaqtrader.com/dynamic/SymDir/${file}`, {
+    cache: "no-store", signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Nasdaq directory failed: ${response.status}`);
+  const symbols = parseNasdaqDirectory(await response.text(), column);
+  if (!symbols.length) throw new Error("Nasdaq directory returned no equities");
   return symbols;
 }
 
-async function fetchCsvSymbols(
-  url: string,
-  symbolColumn: string,
-  fallback: string[]
-): Promise<string[]> {
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "SOARICH-Market-Scanner/1.0" },
-      next: { revalidate: 86400 },
-    });
-    if (!response.ok) return fallback;
-    const csv = await response.text();
-    const symbols = parseCsvSymbols(csv, symbolColumn);
-    return symbols.length > 0 ? symbols : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-async function fetchNasdaq100Symbols(): Promise<string[]> {
-  try {
-    const response = await fetch(
-      "https://raw.githubusercontent.com/ArjunVachhani/Nasdaq-100-Companies/main/nasdaq100.csv",
-      {
-        headers: { "User-Agent": "SOARICH-Market-Scanner/1.0" },
-        next: { revalidate: 86400 },
-      }
-    );
-    if (response.ok) {
-      const csv = await response.text();
-      const symbols = parseCsvSymbols(csv, "Symbol");
-      if (symbols.length >= 90) return symbols;
-    }
-  } catch {
-    // fall through
-  }
-  return NASDAQ100_FALLBACK;
-}
-
 export async function getUsUniverse(): Promise<UniverseSymbol[]> {
-  const [sp500, nasdaq100] = await Promise.all([
-    fetchCsvSymbols(SP500_CSV_URL, "Symbol", SP500_FALLBACK),
-    fetchNasdaq100Symbols(),
+  const [nasdaq, other] = await Promise.all([
+    fetchDirectory("nasdaqlisted.txt", "Symbol"),
+    fetchDirectory("otherlisted.txt", "ACT Symbol"),
   ]);
-
-  const unique = [...new Set([...sp500, ...nasdaq100])];
-  return unique.map((query) => ({ query, market: "US" as const }));
+  return [...new Set([...nasdaq, ...other])].sort().map((query) => ({
+    query, yahooSymbol: query, market: "US" as const,
+  }));
 }
 
 export async function getTwUniverse(): Promise<UniverseSymbol[]> {
-  const stocks = await getAllTaiwanStocks();
-  return stocks.map((stock) => ({
-    query: stock.symbol,
-    market: "TW" as const,
+  return (await getAllTaiwanStocks()).map((stock) => ({
+    query: stock.symbol, market: "TW" as const,
     yahooSymbol: `${stock.symbol}${stock.yahooSuffix}`,
   }));
 }

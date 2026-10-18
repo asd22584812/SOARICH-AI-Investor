@@ -2,6 +2,7 @@ import YahooFinance from "yahoo-finance2";
 import type { Market } from "./types";
 import {
   isTaiwanSearchQuery,
+  getTaiwanStockListFromMemoryCache,
   searchTaiwanStockByNameOrCode,
   type TaiwanStockMatch,
 } from "./twStockList";
@@ -13,7 +14,7 @@ import {
   type YahooSummaryLike,
 } from "./normalizer";
 
-const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"], validation: { logErrors: false } });
 
 export interface NormalizedTicker {
   query: string;
@@ -104,6 +105,7 @@ export function normalizeTicker(query: string): NormalizedTicker | null {
 
   const twDigits = extractTaiwanDigits(trimmed.toUpperCase());
   if (twDigits) {
+    if (/\.(TW|TWO)$/i.test(trimmed)) return { query: trimmed, displaySymbol: twDigits, yahooSymbols: [trimmed.toUpperCase()], market: "TW" };
     return buildTaiwanNormalized(trimmed, twDigits);
   }
 
@@ -114,11 +116,6 @@ export function normalizeTicker(query: string): NormalizedTicker | null {
     yahooSymbols: [upper],
     market: /\.(TW|TWO)$/i.test(upper) ? "TW" : "US",
   };
-}
-
-function toNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  return null;
 }
 
 function mapNormalizedToSnapshot(
@@ -156,8 +153,7 @@ async function resolveTwDisplayName(
   fallbackName: string
 ): Promise<string> {
   try {
-    const match = await searchTaiwanStockByNameOrCode(symbol, 1);
-    const best = match.find((item) => item.symbol === symbol) ?? match[0];
+    const best = getTaiwanStockListFromMemoryCache()?.find((item) => item.symbol === symbol);
     if (best) return best.shortName || best.name;
   } catch {
     // ignore
@@ -167,8 +163,7 @@ async function resolveTwDisplayName(
 
 async function resolveTwIndustry(symbol: string): Promise<string | null> {
   try {
-    const match = await searchTaiwanStockByNameOrCode(symbol, 1);
-    const best = match.find((item) => item.symbol === symbol) ?? match[0];
+    const best = getTaiwanStockListFromMemoryCache()?.find((item) => item.symbol === symbol);
     return best?.industry ?? null;
   } catch {
     return null;
@@ -201,7 +196,7 @@ function displaySymbolFromYahoo(
 }
 
 export async function fetchYahooQuote(yahooSymbol: string) {
-  return yahooFinance.quote(yahooSymbol);
+  return yahooFinance.quote(yahooSymbol, {}, { fetchOptions: { signal: AbortSignal.timeout(20000) } });
 }
 
 export async function fetchYahooSummary(yahooSymbol: string) {
@@ -213,7 +208,7 @@ export async function fetchYahooSummary(yahooSymbol: string) {
       "defaultKeyStatistics",
       "assetProfile",
     ],
-  });
+  }, { fetchOptions: { signal: AbortSignal.timeout(20000) } });
 }
 
 async function safeFetchYahooSummary(yahooSymbol: string) {
@@ -228,8 +223,9 @@ async function buildSnapshotFromYahoo(
   normalized: NormalizedTicker,
   yahooSymbol: string
 ): Promise<YahooStockSnapshot | null> {
-  const quote = await fetchYahooQuote(yahooSymbol).catch(() => null);
-  const summary = await safeFetchYahooSummary(yahooSymbol);
+  const [quote, summary] = await Promise.all([
+    fetchYahooQuote(yahooSymbol).catch(() => null), safeFetchYahooSummary(yahooSymbol),
+  ]);
 
   const price =
     quote?.regularMarketPrice ?? summary?.price?.regularMarketPrice ?? null;
@@ -383,8 +379,8 @@ export async function searchStock(query: string): Promise<YahooStockSnapshot | n
   const trimmed = cleanQuery(query);
   if (!trimmed) return null;
 
-  if (isTaiwanSearchQuery(trimmed)) {
-    const matches = await searchTaiwanStockByNameOrCode(trimmed, 1);
+  if (isTaiwanSearchQuery(trimmed) && !/\.(TW|TWO)$/i.test(trimmed)) {
+    const matches = await searchTaiwanStockByNameOrCode(trimmed, 1).catch(() => []);
     const best = matches[0];
     if (best) {
       const normalized = buildNormalizedFromTaiwanMatch(trimmed, best);
@@ -497,4 +493,21 @@ export async function searchYahooSymbols(
   } catch {
     return [];
   }
+}
+
+export async function fetchExactStock(yahooSymbol: string): Promise<YahooStockSnapshot | null> {
+  const normalized = normalizedFromYahooSymbol(yahooSymbol, yahooSymbol);
+  const snapshot = await tryBuildSnapshot(normalized, yahooSymbol);
+  return snapshot?.yahooSymbol === yahooSymbol && snapshot.displaySymbol === normalized.displaySymbol ? snapshot : null;
+}
+
+// Yahoo occasionally adds fields before the library schema catches up.
+// Validate the small public contract ourselves; never accept missing prices or foreign markets.
+let usCandidatesCache: { until: number; promise: Promise<unknown> } | undefined;
+export async function fetchDynamicUsCandidates(): Promise<unknown> {
+  if (usCandidatesCache && usCandidatesCache.until > Date.now()) return usCandidatesCache.promise;
+  const promise = yahooFinance.screener({ scrIds: "undervalued_large_caps", count: 25 }, undefined,
+    { validateResult: false, fetchOptions: { signal: AbortSignal.timeout(20000) } });
+  usCandidatesCache = { until: Date.now() + 300000, promise };
+  try { return await promise; } catch (error) { usCandidatesCache = undefined; throw error; }
 }

@@ -19,10 +19,10 @@ export function matchesMarketFilter(
 export function getHomeSectionLabels(filter: MarketFilter) {
   const prefix = filter === "TW" ? "台股" : "美股";
   return {
-    todayFocus: "今日關注",
-    undervalued: `${prefix}低估關注`,
-    highQuality: `${prefix}高品質觀察`,
-    moat: `${prefix}護城河觀察`,
-    watchlist: filter === "TW" ? "熱門台股" : "熱門美股",
+    todayFocus: "估值研究候選",
+    undervalued: `${prefix}低於保守估值`,
+    highQuality: `${prefix}品質與合理價觀察`,
+    moat: `${prefix}成長改善觀察`,
+    watchlist: `${prefix}股票觀察`,
   };
 }

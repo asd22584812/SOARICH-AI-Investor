@@ -13,6 +13,10 @@ export interface StockQuote {
   change: number;
   changePercent: number;
   currency: "TWD" | "USD";
+  changeAvailable?: boolean;
+  quoteAsOf?: string | null;
+  quoteSource?: string;
+  quoteDate?: string | null;
 }
 
 export interface AIScoreBreakdown {
@@ -24,11 +28,11 @@ export interface AIScoreBreakdown {
 }
 
 export interface ValuationAnalysis {
-  safetyPrice: number;
-  fairPrice: number;
-  optimisticPrice: number;
-  dcfValue: number;
-  marginOfSafety: number;
+  safetyPrice: number | null;
+  fairPrice: number | null;
+  optimisticPrice: number | null;
+  dcfValue: number | null;
+  marginOfSafety: number | null;
   valuationModel?: string;
   valuationConfidence?: "high" | "medium" | "low";
   dcfWasClamped?: boolean;
@@ -57,6 +61,7 @@ export interface KeyPersonRisk {
 }
 
 export interface BuffettScore {
+  actualDebtToEquity?: number | null;
   score: number;
   roe: number;
   freeCashFlow: number;
@@ -133,6 +138,11 @@ export interface HomeMarketFeed {
 }
 
 export interface HomeFeedResponse {
+  researchRadar?: import("@/lib/research/radar").ResearchRadar;
+  assessmentStatus?: "data_unverified" | "research_only" | "source_error";
+  nextCursor?: number;
+  universeCount?: number;
+  popular?: WatchlistItem[];
   scanning: boolean;
   message?: string;
   feed: HomeMarketFeed;
@@ -149,7 +159,7 @@ export interface HomeFeedResponse {
 export type AIRecommendation = HomeStockCard;
 
 export interface WatchlistItem extends StockQuote {
-  aiScore: number;
+  aiScore: number | null;
   entryLabel: string;
   entrySignal: EntrySignal;
   sparkline: number[];
@@ -226,4 +236,18 @@ export interface AssetOverview {
   dailyPnL: number;
   dailyPnLPercent: number;
   currency: "TWD" | "USD";
+}
+
+/** Public research response: raw vendor observations, never legacy heuristic ratings. */
+export interface StockResearchReport extends StockQuote {
+  industry: string | null;
+  financialProfile: Omit<FinancialProfile, "score">;
+  financialCurrency: string | null;
+  sourceUrl: string;
+  officialSourceUrl: string;
+  valuationStatus: "unverified";
+  valuationReasons: string[];
+  official?: import("@/lib/research/official").OfficialFinancials;
+  officialError?: string;
+  scenarioValuation?: import("@/lib/research/scenarios").ScenarioResult;
 }

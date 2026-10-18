@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import type { Market, StockAnalysis } from "@/types/stock";
 import { calculateRadarScore } from "@/lib/stock/home-feed";
 
@@ -41,7 +42,7 @@ export interface StockSnapshotRow {
   scanned_at: string;
 }
 
-const DB_DIR = path.join(process.cwd(), "data");
+const DB_DIR = process.env.MARKET_DATA_DIR ?? (process.env.VERCEL ? path.join(os.tmpdir(), "soarich-market") : path.join(process.cwd(), "data"));
 const DB_PATH = path.join(DB_DIR, "market.db");
 
 let dbInstance: Database.Database | null = null;
@@ -107,6 +108,10 @@ function initSchema(db: Database.Database): void {
       value TEXT NOT NULL
     );
   `);
+  const columns = db.pragma("table_info(stock_snapshots)") as { name: string }[];
+  if (!columns.some((c) => c.name === "model_version")) {
+    db.exec("ALTER TABLE stock_snapshots ADD COLUMN model_version INTEGER NOT NULL DEFAULT 0");
+  }
 }
 
 export function getMarketDb(): Database.Database {
@@ -122,7 +127,7 @@ export function hasMarketData(market: Market): boolean {
   const db = getMarketDb();
   const row = db
     .prepare(
-      "SELECT COUNT(*) as count FROM stock_snapshots WHERE market = ?"
+      "SELECT COUNT(*) as count FROM stock_snapshots WHERE market = ? AND model_version = 2 AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days')"
     )
     .get(market) as { count: number };
   return row.count > 0;
@@ -150,7 +155,14 @@ export function getScanStatus(market: Market): {
   lastScannedAt: string | null;
   hasData: boolean;
 } {
-  const run = getLatestScanRun(market);
+  let run = getLatestScanRun(market);
+  if (run?.status === "running") {
+    const lease = getScanMeta(`lease_${market}`);
+    if (!lease || Number(lease.split(":")[0]) <= Date.now()) {
+      completeScanRun(run.id, "failed", "掃描中斷，等待下一次重試");
+      run = getLatestScanRun(market);
+    }
+  }
   const hasData = hasMarketData(market);
 
   if (!run) {
@@ -164,12 +176,10 @@ export function getScanStatus(market: Market): {
     };
   }
 
-  const lastScannedAt =
-    run.status === "completed"
-      ? run.completed_at
-      : run.status === "running"
-        ? run.started_at
-        : run.completed_at;
+  const latest = getMarketDb().prepare(
+    "SELECT MAX(scanned_at) AS at FROM stock_snapshots WHERE market = ? AND model_version = 2"
+  ).get(market) as { at: string | null };
+  const lastScannedAt = latest.at;
 
   return {
     status: run.status,
@@ -246,13 +256,13 @@ export function upsertStockSnapshot(
       current_price, fair_value, valuation_model, margin_of_safety,
       radar_score, soarich_rating, moat_score, financial_score, buffett_score,
       market_cap, moat_is_estimate, management_is_estimate,
-      company_classification, analysis_json, scanned_at
+      company_classification, analysis_json, scanned_at, model_version
     ) VALUES (
       @symbol, @market, @yahoo_symbol, @name, @currency, @financial_currency,
       @current_price, @fair_value, @valuation_model, @margin_of_safety,
       @radar_score, @soarich_rating, @moat_score, @financial_score, @buffett_score,
       @market_cap, @moat_is_estimate, @management_is_estimate,
-      @company_classification, @analysis_json, @scanned_at
+      @company_classification, @analysis_json, @scanned_at, 2
     )
     ON CONFLICT(symbol, market) DO UPDATE SET
       yahoo_symbol = excluded.yahoo_symbol,
@@ -273,6 +283,7 @@ export function upsertStockSnapshot(
       management_is_estimate = excluded.management_is_estimate,
       company_classification = excluded.company_classification,
       analysis_json = excluded.analysis_json,
+      model_version = excluded.model_version,
       scanned_at = excluded.scanned_at`
   ).run({
     symbol: analysis.symbol,
@@ -282,9 +293,9 @@ export function upsertStockSnapshot(
     currency: analysis.currency,
     financial_currency: extras.financialCurrency,
     current_price: analysis.price,
-    fair_value: analysis.valuation.fairPrice,
+    fair_value: analysis.valuation.fairPrice ?? 0,
     valuation_model: extras.valuationModel,
-    margin_of_safety: analysis.valuation.marginOfSafety,
+    margin_of_safety: analysis.valuation.marginOfSafety ?? 0,
     radar_score: radarScore,
     soarich_rating: analysis.totalScore,
     moat_score: analysis.moat.score,
@@ -304,7 +315,7 @@ export function getAllStockAnalyses(market: Market): StockAnalysis[] {
   const rows = db
     .prepare(
       `SELECT analysis_json FROM stock_snapshots
-       WHERE market = ?
+       WHERE market = ? AND model_version = 2 AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days')
        ORDER BY soarich_rating DESC`
     )
     .all(market) as { analysis_json: string }[];
@@ -328,7 +339,7 @@ export function getPopularStocks(
   const rows = db
     .prepare(
       `SELECT analysis_json FROM stock_snapshots
-       WHERE market = ?
+       WHERE market = ? AND model_version = 2 AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-2 days')
        ORDER BY
          CASE WHEN market_cap IS NULL THEN 1 ELSE 0 END,
          market_cap DESC,
@@ -362,4 +373,26 @@ export function getScanMeta(key: string): string | null {
     .prepare("SELECT value FROM scan_meta WHERE key = ?")
     .get(key) as { value: string } | undefined;
   return row?.value ?? null;
+}
+
+/** Cross-process lease; token prevents an expired worker releasing a newer lease. */
+export function acquireScanLease(market: Market): string | null {
+  const db = getMarketDb();
+  return db.transaction(() => {
+    const key = `lease_${market}`;
+    const existing = getScanMeta(key);
+    if (existing && Number(existing.split(":")[0]) > Date.now()) return null;
+    const token = `${Date.now() + 120000}:${crypto.randomUUID()}`;
+    setScanMeta(key, token);
+    return token;
+  })();
+}
+export function renewScanLease(market: Market, token: string): string {
+  const next = `${Date.now() + 120000}:${token.split(":")[1]}`;
+  const result = getMarketDb().prepare("UPDATE scan_meta SET value = ? WHERE key = ? AND value = ?").run(next, `lease_${market}`, token);
+  if (!result.changes) throw new Error("Scan lease lost");
+  return next;
+}
+export function releaseScanLease(market: Market, token: string): void {
+  getMarketDb().prepare("DELETE FROM scan_meta WHERE key = ? AND value = ?").run(`lease_${market}`, token);
 }

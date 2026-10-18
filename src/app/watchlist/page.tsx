@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { WATCHLIST_TICKERS } from "@/data/mock-data";
 import { fetchStockAnalysis } from "@/lib/stock/api-client";
 import { toWatchlistItem } from "@/lib/stock/watchlist";
 import { WatchlistCards } from "@/components/home/watchlist-cards";
@@ -19,7 +18,12 @@ export default function WatchlistPage() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all(WATCHLIST_TICKERS.map((ticker) => fetchStockAnalysis(ticker)))
+    let tickers: string[] = [];
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem("soarich-watchlist") ?? "[]");
+      if (Array.isArray(stored)) tickers = stored.filter((s): s is string => typeof s === "string");
+    } catch { /* Invalid local storage is treated as an empty user list. */ }
+    Promise.all(tickers.map((ticker) => fetchStockAnalysis(ticker)))
       .then((analyses) => {
         if (cancelled) return;
         setWatchlist(
@@ -28,6 +32,7 @@ export default function WatchlistPage() {
             .map(toWatchlistItem)
         );
       })
+      .catch(() => { if (!cancelled) setError("自選股資料讀取失敗，請稍後重試"); })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -51,7 +56,10 @@ export default function WatchlistPage() {
       setError("已在自選股中");
       return;
     }
-    setWatchlist((prev) => [...prev, toWatchlistItem(stock)]);
+    const next = [...watchlist, toWatchlistItem(stock)];
+    try { localStorage.setItem("soarich-watchlist", JSON.stringify(next.map((s) => s.symbol))); }
+    catch { setError("無法儲存自選股，請確認瀏覽器儲存空間"); return; }
+    setWatchlist(next);
     setAddSymbol("");
     setShowAdd(false);
   };

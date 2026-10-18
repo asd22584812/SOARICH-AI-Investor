@@ -8,6 +8,7 @@ console.log("SOARICH daily market scan started", new Date().toISOString());
 
 for (const market of ["TW", "US"]) {
   console.log(`\n=== Scanning ${market} ===`);
+  try {
   const result = await runMarketScan(market, {
     limit,
     delayMs,
@@ -15,6 +16,11 @@ for (const market of ["TW", "US"]) {
     clearExisting: true,
   });
   console.log(JSON.stringify({ market, ...result }));
+  if (result.failed > 0) process.exitCode = 1;
+  } catch (error) {
+    console.error(market, error.message);
+    process.exitCode = 1;
+  }
 }
 
 console.log("\nDaily scan completed", new Date().toISOString());

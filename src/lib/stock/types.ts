@@ -6,6 +6,7 @@ export interface StockFinancials {
   bookValuePerShare: number;
   freeCashFlowPerShare: number;
   growthRate: number;
+  earningsGrowth?: number | null;
   roe: number;
   roa: number;
   grossMargin: number;
@@ -30,6 +31,7 @@ export interface StockInput {
   bookValuePerShare: number;
   freeCashFlowPerShare: number;
   growthRate: number;
+  earningsGrowth?: number | null;
   roe: number;
   roa: number;
   grossMargin: number;

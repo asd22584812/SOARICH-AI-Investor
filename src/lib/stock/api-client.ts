@@ -1,8 +1,7 @@
 import type {
   HomeFeedResponse,
-  HomeMarketFeed,
   Market,
-  StockAnalysis,
+  StockResearchReport,
   WatchlistItem,
 } from "@/types/stock";
 
@@ -24,12 +23,12 @@ async function parseJson<T>(response: Response): Promise<T | null> {
 
 export async function fetchStockAnalysis(
   query: string
-): Promise<StockAnalysis | null> {
+): Promise<StockResearchReport | null> {
   const response = await fetch(
     `/api/stocks/analyze?q=${encodeURIComponent(query)}`,
     { cache: "no-store" }
   );
-  return parseJson<StockAnalysis>(response);
+  return parseJson<StockResearchReport>(response);
 }
 
 export async function searchStocksApi(
@@ -47,16 +46,16 @@ export async function searchStocksApi(
 }
 
 export async function fetchHomeMarketFeed(
-  market: Market
+  market: Market, cursor?: number
 ): Promise<HomeFeedResponse> {
-  const response = await fetch(`/api/stocks/recommendations?market=${market}`, {
+  const response = await fetch(`/api/stocks/recommendations?market=${market}${cursor == null ? "" : `&cursor=${cursor}`}`, {
     cache: "no-store",
   });
   const data = await parseJson<HomeFeedResponse>(response);
   return (
     data ?? {
-      scanning: true,
-      message: "正在更新市場資料",
+      scanning: false,
+      message: "市場資料讀取失敗，請稍後重試",
       feed: {
         todayFocus: [],
         undervalued: [],
@@ -87,7 +86,7 @@ export async function fetchPopularStocks(
     message?: string;
     items: WatchlistItem[];
   }>(response);
-  return data ?? { scanning: true, message: "正在更新市場資料", items: [] };
+  return data ?? { scanning: false, message: "市場資料讀取失敗，請稍後重試", items: [] };
 }
 
 /** @deprecated Use fetchHomeMarketFeed */

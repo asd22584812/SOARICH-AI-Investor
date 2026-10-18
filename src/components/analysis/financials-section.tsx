@@ -2,10 +2,12 @@ import type { FinancialProfile } from "@/types/stock";
 import { formatCompactNumber, formatMetric } from "@/lib/utils";
 
 interface FinancialsSectionProps {
-  financials: FinancialProfile;
+  financials: Omit<FinancialProfile, "score">;
+  currency: string;
+  financialCurrency: string | null;
 }
 
-export function FinancialsSection({ financials }: FinancialsSectionProps) {
+export function FinancialsSection({ financials, currency, financialCurrency }: FinancialsSectionProps) {
   const metrics = [
     {
       label: "ROE",
@@ -28,7 +30,7 @@ export function FinancialsSection({ financials }: FinancialsSectionProps) {
       value: formatMetric(financials.debtToEquity, (v) => v.toFixed(2)),
     },
     {
-      label: "EPS",
+      label: `EPS（${financialCurrency ?? "幣別未確認"}）`,
       value: formatMetric(financials.eps, (v) => v.toFixed(2)),
     },
     {
@@ -40,11 +42,11 @@ export function FinancialsSection({ financials }: FinancialsSectionProps) {
       value: formatMetric(financials.pb, (v) => v.toFixed(1)),
     },
     {
-      label: "成長率",
+      label: "營收成長率（期間待核對）",
       value: formatMetric(financials.growthRate, (v) => `${v.toFixed(1)}%`),
     },
     {
-      label: "市值",
+      label: `市值（${currency}）`,
       value: formatCompactNumber(financials.marketCap),
     },
   ];
@@ -52,11 +54,8 @@ export function FinancialsSection({ financials }: FinancialsSectionProps) {
   return (
     <section className="glass-card rounded-3xl p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">財務體質</h2>
-        <div className="text-right">
-          <span className="text-2xl font-bold text-brand">{financials.score}</span>
-          <span className="text-sm text-text-secondary">/100</span>
-        </div>
+        <h2 className="text-base font-semibold text-text-primary">來源財務指標（待核對）</h2>
+
       </div>
 
       <div className="grid grid-cols-3 gap-2.5">

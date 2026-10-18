@@ -16,6 +16,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     market,
     ...status,
-    message: status.scanning || !status.hasData ? "正在更新市場資料" : null,
+    message: status.scanning ? "正在更新市場資料" : status.status === "failed" ? "市場資料更新失敗" : !status.hasData ? "市場資料尚未建立" : null,
   });
 }

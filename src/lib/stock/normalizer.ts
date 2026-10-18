@@ -40,6 +40,10 @@ export interface NormalizedFinancialData {
   name: string;
   market: Market;
   currency: "TWD" | "USD";
+  quoteAsOf?: string | null;
+  financialCurrency?: string | null;
+  currencyMismatch?: boolean;
+  quoteType?: string | null;
   sector: string | null;
   industry: string | null;
   currentPrice: number | null;
@@ -100,8 +104,8 @@ function toFiniteNumber(value: unknown): number | null {
 export function normalizePercentField(value: unknown): number | null {
   const numeric = toFiniteNumber(value);
   if (numeric == null) return null;
-  if (Math.abs(numeric) <= 5) return numeric * 100;
-  return numeric;
+  // Yahoo financialData ratios are fractions, including values above 500%.
+  return numeric * 100;
 }
 
 export function normalizeRatioField(
@@ -121,19 +125,9 @@ export function normalizeRatioField(
 
 export function normalizeDebtToEquity(value: unknown): NormalizedDebtToEquity {
   const raw = toFiniteNumber(value);
-  if (raw == null || raw <= 0) {
-    return { value: null, uncertain: false, raw };
-  }
-  if (raw > 100) {
-    return { value: raw / 100, uncertain: false, raw };
-  }
-  if (raw > 20) {
-    return { value: raw / 100, uncertain: false, raw };
-  }
-  if (raw > 5) {
-    return { value: raw / 100, uncertain: true, raw };
-  }
-  return { value: raw, uncertain: false, raw };
+  if (raw == null || raw < 0) return { value: null, uncertain: false, raw };
+  // Yahoo reports debt/equity in percent, even when the value is below 5.
+  return { value: raw / 100, uncertain: false, raw };
 }
 
 function resolveFcfPerShare(input: {
@@ -157,16 +151,6 @@ function resolveFcfPerShare(input: {
         source: "reported",
       };
     }
-    if (input.operatingCashflow != null) {
-      return {
-        value: input.operatingCashflow / input.sharesOutstanding,
-        source: "operating_cashflow",
-      };
-    }
-  }
-
-  if (input.eps != null && input.eps > 0) {
-    return { value: input.eps * 0.75, source: "eps_estimate" };
   }
 
   return { value: null, source: "missing" };
@@ -207,10 +191,12 @@ export function validateFinancialData(
 }
 
 export type YahooQuoteLike = {
+  quoteType?: string;
   symbol?: string;
   shortName?: string;
   longName?: string;
   currency?: string;
+  regularMarketTime?: Date | number | string;
   regularMarketPrice?: number;
   regularMarketChange?: number;
   regularMarketChangePercent?: number;
@@ -222,9 +208,13 @@ export type YahooQuoteLike = {
 
 export type YahooSummaryLike = {
   price?: {
+    quoteType?: string;
     shortName?: string;
     longName?: string;
+    regularMarketTime?: Date | number | string;
     regularMarketPrice?: number;
+    regularMarketChange?: number;
+    regularMarketChangePercent?: number;
     currency?: string;
   };
   summaryDetail?: {
@@ -242,6 +232,7 @@ export type YahooSummaryLike = {
     enterpriseToEbitda?: number;
   };
   financialData?: {
+    financialCurrency?: string | null;
     freeCashflow?: number;
     operatingCashflow?: number;
     totalRevenue?: number;
@@ -258,6 +249,8 @@ export type YahooSummaryLike = {
     quickRatio?: number;
   };
   assetProfile?: {
+    sector?: string;
+    industry?: string;
     sectorDisp?: string;
     industryDisp?: string;
   };
@@ -298,8 +291,7 @@ export function normalizeYahooSummary(
     operatingCashflow: toFiniteNumber(summary?.financialData?.operatingCashflow),
     sharesOutstanding,
     eps:
-      toFiniteNumber(summary?.defaultKeyStatistics?.trailingEps) ??
-      toFiniteNumber(summary?.defaultKeyStatistics?.forwardEps),
+      toFiniteNumber(summary?.defaultKeyStatistics?.trailingEps),
   });
 
   const debtNormalized = normalizeDebtToEquity(summary?.financialData?.debtToEquity);
@@ -311,11 +303,10 @@ export function normalizeYahooSummary(
       null,
     currentPrice: toFiniteNumber(summary?.price?.regularMarketPrice),
     currency: summary?.price?.currency ?? null,
-    sector: summary?.assetProfile?.sectorDisp ?? null,
-    industry: summary?.assetProfile?.industryDisp ?? null,
+    sector: summary?.assetProfile?.sectorDisp ?? summary?.assetProfile?.sector ?? null,
+    industry: summary?.assetProfile?.industryDisp ?? summary?.assetProfile?.industry ?? null,
     eps:
-      toFiniteNumber(summary?.defaultKeyStatistics?.trailingEps) ??
-      toFiniteNumber(summary?.defaultKeyStatistics?.forwardEps),
+      toFiniteNumber(summary?.defaultKeyStatistics?.trailingEps),
     forwardEps: toFiniteNumber(summary?.defaultKeyStatistics?.forwardEps),
     bookValuePerShare: toFiniteNumber(summary?.defaultKeyStatistics?.bookValue),
     freeCashFlowPerShare: fcfResolved.value,
@@ -386,17 +377,25 @@ export function normalizeFinancials(input: {
   const eps = fromQuote.eps ?? fromSummary.eps;
   const marketCap = fromQuote.marketCap ?? fromSummary.marketCap;
 
+  const financialCurrency = input.summary?.financialData?.financialCurrency ?? null;
+  const quoteCurrency = fromQuote.currency ?? fromSummary.currency;
+  const currencyMismatch = financialCurrency !== input.currency || quoteCurrency !== input.currency;
+  const quoteType = input.quote?.quoteType ?? input.summary?.price?.quoteType ?? null;
   const base: NormalizedFinancialData = {
     displaySymbol: input.displaySymbol,
     yahooSymbol: input.yahooSymbol,
     name: input.name ?? fromQuote.name ?? fromSummary.name ?? input.displaySymbol,
     market: input.market,
     currency: input.currency,
+    quoteAsOf: normalizeQuoteTime(input.quote?.regularMarketTime ?? input.summary?.price?.regularMarketTime),
+    financialCurrency,
+    currencyMismatch,
+    quoteType,
     sector: fromSummary.sector,
     industry: fromSummary.industry,
     currentPrice,
-    change: fromQuote.change,
-    changePercent: fromQuote.changePercent,
+    change: fromQuote.change ?? toFiniteNumber(input.summary?.price?.regularMarketChange),
+    changePercent: fromQuote.changePercent ?? normalizePercentField(input.summary?.price?.regularMarketChangePercent),
     eps,
     forwardEps: fromSummary.forwardEps,
     bookValuePerShare: fromSummary.bookValuePerShare,
@@ -429,9 +428,27 @@ export function normalizeFinancials(input: {
     companyClassification: "value",
   };
 
+  // Without a verified FX rate and ADR share basis, never mix reporting and quote currency.
+  if (currencyMismatch) {
+    base.eps = null;
+    base.forwardEps = null;
+    base.bookValuePerShare = null;
+    base.freeCashFlowPerShare = null;
+    base.operatingCashFlowPerShare = null;
+    base.revenuePerShare = null;
+    base.fcfPerShareSource = "missing";
+  }
   const validation = validateFinancialData(base);
-  base.insufficientData = validation.insufficientData;
+  base.insufficientData = validation.insufficientData || currencyMismatch || quoteType !== "EQUITY";
   base.missingCriticalFields = validation.missingCriticalFields;
 
+  if (currencyMismatch) base.missingCriticalFields.push("financialCurrency");
+  if (quoteType !== "EQUITY") base.missingCriticalFields.push("unsupportedQuoteType");
   return base;
+}
+
+export function normalizeQuoteTime(value: Date | number | string | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(typeof value === "number" ? value * 1000 : value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }

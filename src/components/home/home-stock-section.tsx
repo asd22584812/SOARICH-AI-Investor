@@ -8,6 +8,7 @@ import { Sparkles } from "lucide-react";
 
 interface HomeStockSectionProps {
   title: string;
+  emptyMessage?: string;
   subtitle?: string | null;
   items: HomeStockCard[];
   compact?: boolean;
@@ -16,6 +17,7 @@ interface HomeStockSectionProps {
 
 export function HomeStockSection({
   title,
+  emptyMessage = "此市場暫無符合條件的股票",
   subtitle,
   items,
   compact,
@@ -33,7 +35,7 @@ export function HomeStockSection({
 
       {items.length === 0 ? (
         <p className="py-6 text-center text-sm text-text-secondary">
-          此市場暫無符合條件的股票
+          {emptyMessage}
         </p>
       ) : (
         <div className="carousel">
@@ -76,7 +78,7 @@ export function HomeStockSection({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   {showUndervaluedBadge && item.undervaluedPercent > 0 ? (
                     <span className="rounded-lg bg-success/10 px-2 py-1 text-xs font-medium text-success">
-                      低估 {item.undervaluedPercent}%
+                      低於模型估值 {item.undervaluedPercent}%
                     </span>
                   ) : (
                     <span className="text-xs text-text-secondary">{item.entryLabel}</span>

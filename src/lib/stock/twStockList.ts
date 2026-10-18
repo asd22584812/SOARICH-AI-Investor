@@ -1,4 +1,3 @@
-import fallbackTaiwanStocks from "@/data/fallbackTaiwanStocks.json";
 import { resolveTwseIndustryName } from "./tw-industry-codes";
 
 const TWSE_API_URL = "https://openapi.twse.com.tw/v1/opendata/t187ap03_L";
@@ -117,57 +116,44 @@ function parseTpexRows(
   return [...map.values()];
 }
 
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs = 15000
-): Promise<Response> {
-  return fetch(url, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+let directoryWarnings: string[] = [];
+export function getTaiwanDirectoryWarnings(): string[] { return [...directoryWarnings]; }
+
+async function fetchRows(url: string, source: string): Promise<Array<Record<string, string>>> {
+  try {
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    // The timeout covers the body too, not just response headers.
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error("名單格式錯誤");
+    return rows;
+  } catch (error) {
+    throw new Error(`${source}：${error instanceof Error && error.message.startsWith("HTTP") ? error.message : "下載失敗或逾時"}`);
+  }
 }
 
 export async function fetchTwseStocks(): Promise<TaiwanStockRecord[]> {
-  const response = await fetchWithTimeout(TWSE_API_URL);
-  if (!response.ok) {
-    throw new Error(`TWSE API failed: ${response.status}`);
-  }
-  const rows = (await response.json()) as Array<Record<string, string>>;
-  return parseTwseRows(rows);
+  const stocks = parseTwseRows(await fetchRows(TWSE_API_URL, "TWSE 上市名單"));
+  if (!stocks.length) throw new Error("Invalid or empty TWSE list");
+  return stocks;
 }
 
 export async function fetchTpexStocks(): Promise<TaiwanStockRecord[]> {
-  const response = await fetchWithTimeout(TPEX_API_URL);
-  if (!response.ok) {
-    throw new Error(`TPEx API failed: ${response.status}`);
-  }
-  const rows = (await response.json()) as Array<{
-    SecuritiesCompanyCode?: string;
-    CompanyName?: string;
-  }>;
-  return parseTpexRows(rows);
+  const stocks = parseTpexRows(await fetchRows(TPEX_API_URL, "TPEx 上櫃名單"));
+  if (!stocks.length) throw new Error("Invalid or empty TPEx list");
+  return stocks;
 }
 
-function loadFallbackStocks(): TaiwanStockRecord[] {
-  return (fallbackTaiwanStocks as TaiwanStockRecord[]).map((stock) => ({
-    ...stock,
-    name: cleanName(stock.name),
-    shortName: cleanName(stock.shortName),
-  }));
-}
-
-async function fetchAllTaiwanStocksFromApis(): Promise<TaiwanStockRecord[]> {
-  const [twse, tpex] = await Promise.all([fetchTwseStocks(), fetchTpexStocks()]);
-  const twseSymbols = new Set(twse.map((stock) => stock.symbol));
-  const merged = [
-    ...twse,
-    ...tpex.filter((stock) => !twseSymbols.has(stock.symbol)),
-  ];
-  return merged.sort((a, b) => a.symbol.localeCompare(b.symbol));
+export async function fetchAllTaiwanStocksFromApis(): Promise<TaiwanStockRecord[]> {
+  const results = await Promise.allSettled([fetchTwseStocks(), fetchTpexStocks()]);
+  directoryWarnings = results.flatMap((r) => r.status === "rejected" ? [String(r.reason instanceof Error ? r.reason.message : r.reason)] : []);
+  const stocks = results.flatMap((r) => r.status === "fulfilled" ? r.value : []);
+  if (!stocks.length) throw new Error(directoryWarnings.join("；"));
+  return [...new Map(stocks.map((s) => [s.symbol, s])).values()].sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
 function isCacheValid(cache: CachePayload | null): cache is CachePayload {
-  return !!cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS;
+  return !!cache && Date.now() - cache.fetchedAt < (directoryWarnings.length ? 60000 : CACHE_TTL_MS);
 }
 
 export function getTaiwanStockListFromMemoryCache(): TaiwanStockRecord[] | null {
@@ -209,16 +195,10 @@ export async function getAllTaiwanStocks(): Promise<TaiwanStockRecord[]> {
     return memoryCache.stocks;
   }
 
-  try {
-    const stocks = await fetchAllTaiwanStocksFromApis();
-    setTaiwanStockListMemoryCache(stocks);
-    return stocks;
-  } catch (error) {
-    console.error("[twStockList] OpenAPI fetch failed, using fallback:", error);
-    const fallback = loadFallbackStocks();
-    setTaiwanStockListMemoryCache(fallback);
-    return fallback;
-  }
+  const stocks = await fetchAllTaiwanStocksFromApis();
+  if (!stocks.length) throw new Error("Taiwan exchange lists returned no equities");
+  setTaiwanStockListMemoryCache(stocks);
+  return stocks;
 }
 
 function scoreTaiwanStock(stock: TaiwanStockRecord, query: string): number {
