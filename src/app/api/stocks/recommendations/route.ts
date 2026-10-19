@@ -1,4 +1,4 @@
-import { getResearchRadar } from "@/lib/research/radar";
+import { getEntryRadar } from "@/lib/research/radar";
 import { NextRequest, NextResponse } from "next/server";
 import type { HomeFeedResponse } from "@/types/stock";
 
@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
     popular: [], lastScannedAt: null,
   };
   try {
-    response.researchRadar = await getResearchRadar(market);
+    response.researchRadar = await getEntryRadar(market, Math.min(2000,Math.max(0,Math.trunc(Number(request.nextUrl.searchParams.get("cursor"))||0))));
     response.assessmentStatus = "research_only";
-    response.message = "以下為有來源的研究初篩，尚未確認合理價，不是買入建議。";
+    response.message = "以下只顯示現價通過模型入場條件的股票；可點入查看計算數字、財報與假設。價格符合不等於保證獲利。";
   } catch (error) {
     response.assessmentStatus = "source_error";
     response.message = `市場來源讀取失敗：${error instanceof Error ? error.message : "暫時無法連線"}。未以固定名單補位。`;

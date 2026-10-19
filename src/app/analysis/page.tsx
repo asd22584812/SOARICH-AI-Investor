@@ -7,33 +7,21 @@ import { fetchStockAnalysis } from "@/lib/stock/api-client";
 import { StockSearchField } from "@/components/home/stock-search-field";
 import { StockPriceHeader } from "@/components/analysis/stock-price-header";
 import { OfficialFinancialsSection } from "@/components/analysis/official-financials";
-import { FinancialsSection } from "@/components/analysis/financials-section";
+import { EntryResearch } from "@/components/analysis/entry-research";
 
-function AnalysisContent() {
+function AnalysisContent({initialSymbol}:{initialSymbol:string}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialSymbol = searchParams.get("symbol") ?? "";
   const [symbol, setSymbol] = useState(initialSymbol);
   const [query, setQuery] = useState(initialSymbol);
   const [analysis, setAnalysis] = useState<StockResearchReport | null>(null);
   const [reload, setReload] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!initialSymbol.trim());
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     const loadSymbol = initialSymbol.trim();
-    if (!loadSymbol) {
-      setAnalysis(null);
-      setQuery("");
-      setNotFound(false);
-      return;
-    }
-
+    if (!loadSymbol) return;
     let cancelled = false;
-    setSymbol(loadSymbol);
-    setQuery(loadSymbol);
-    setLoading(true);
-    setNotFound(false);
 
     fetchStockAnalysis(loadSymbol)
       .then((result) => {
@@ -59,7 +47,7 @@ function AnalysisContent() {
   const handleSearch = () => {
     const trimmed = symbol.trim();
     if (!trimmed) return;
-    if (trimmed === initialSymbol) setReload((value) => value + 1);
+    if (trimmed === initialSymbol) { setLoading(true); setNotFound(false); setReload((value) => value + 1); }
     else router.replace(`/analysis?symbol=${encodeURIComponent(trimmed)}`);
   };
 
@@ -114,13 +102,8 @@ function AnalysisContent() {
 
       <StockPriceHeader stock={analysis} />
 
-      <section className="glass-card rounded-3xl p-5 space-y-3">
-        <h2 className="font-semibold text-brand">{analysis.scenarioValuation?.status === "available" ? "已取得官方財報與情境試算" : "暫無法判斷買入價格"}</h2>
-        {analysis.valuationReasons.map((reason) => <p key={reason} className="text-sm text-text-secondary">{reason}</p>)}
-        <p className="text-sm text-text-secondary">護城河、關鍵人物與接班制度：尚未完成有來源的公司研究，不評分。</p>
-      </section>
-      {analysis.official ? <OfficialFinancialsSection data={analysis.official} scenario={analysis.scenarioValuation} /> : <p className="rounded-xl bg-brand/10 p-4 text-sm text-brand">官方財報未取得：{analysis.officialError ?? "資料尚未接入"}</p>}
-      {!analysis.quoteSource && <FinancialsSection financials={analysis.financialProfile} currency={analysis.currency} financialCurrency={analysis.financialCurrency} />}
+      <EntryResearch report={analysis} />
+      {analysis.official ? <OfficialFinancialsSection data={analysis.official} /> : <p className="rounded-xl bg-brand/10 p-4 text-sm text-brand">官方申報來源目前未取得：{analysis.officialError ?? "資料尚未接入"}。上方若有第三方明細，已另外標示來源。</p>}
       <section className="glass-card rounded-3xl p-5 space-y-3 text-sm">
         <h2 className="font-semibold">資料來源與核對</h2>
         <p className="text-text-secondary">上方官方財報標示實際期間；第三方彙總指標的期間尚未逐項核對，不應與官方累計或年度數字直接比較。</p>
@@ -150,10 +133,15 @@ function SearchInput({
   );
 }
 
+function AnalysisRoute() {
+  const initialSymbol=useSearchParams().get('symbol')??'';
+  return <AnalysisContent key={initialSymbol} initialSymbol={initialSymbol} />;
+}
+
 export default function AnalysisPage() {
   return (
     <Suspense fallback={<div className="py-20 text-center text-text-secondary">載入中...</div>}>
-      <AnalysisContent />
+      <AnalysisRoute />
     </Suspense>
   );
 }
