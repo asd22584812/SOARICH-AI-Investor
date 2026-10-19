@@ -26,3 +26,8 @@ test('FCF parsing preserves zero, rejects positive expense and inconsistent supp
  assert.equal(parseStatementRows([{...raw,operatingCashFlow:0,capitalExpenditure:0,freeCashFlow:0}],12,now)[0].fcf,0);
  assert.equal(parseStatementRows([{...raw,periodType:'6M'}],3,now).length,0);
 });
+test('basic and diluted EPS cannot be silently mixed in a TTM sum',()=>{
+ const e=evidence();e.quarterly.forEach(q=>q.epsBasis='diluted');e.quarterly.at(-1)!.epsBasis='basic';
+ const value=calculateEntry(e,input,now);assert.equal(value.metrics.find(m=>m.label.startsWith('TTM EPS'))?.value,null);
+ assert.equal(value.fair,8);
+});

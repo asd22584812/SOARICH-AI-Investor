@@ -1,6 +1,6 @@
 /** Transparent no-growth capitalization scenarios, not predictions or a probability of profit. */
 export interface StatementRow {
-  end: string; months: 3 | 12;
+  end: string; months: 3 | 12; epsBasis?: "diluted" | "basic" | "unknown";
   revenue: number | null; income: number | null; eps: number | null;
   ocf: number | null; capex: number | null; fcf: number | null;
   grossProfit: number | null; operatingIncome: number | null;
@@ -36,7 +36,7 @@ export function parseStatementRows(input: unknown, months: 3 | 12, now = Date.no
     const agrees = reportedFcf == null || fcf == null || Math.abs(reportedFcf-fcf) <= Math.max(1,Math.abs(fcf)*0.01);
     const end = date.toISOString().slice(0,10);
     rows.set(end, {end,months,revenue:finite(r.totalRevenue),income:finite(r.netIncomeCommonStockholders) ?? finite(r.netIncome),
-      eps:finite(r.dilutedEPS) ?? finite(r.basicEPS),ocf,capex,fcf:agrees?fcf:null,
+      eps:finite(r.dilutedEPS) ?? finite(r.basicEPS),epsBasis:finite(r.dilutedEPS)!=null?'diluted':finite(r.basicEPS)!=null?'basic':'unknown',ocf,capex,fcf:agrees?fcf:null,
       grossProfit:finite(r.grossProfit),operatingIncome:finite(r.operatingIncome),
       equity:finite(r.commonStockEquity) ?? finite(r.stockholdersEquity),assets:finite(r.totalAssets),debt:finite(r.totalDebt),shares:finite(r.ordinarySharesNumber)});
   }
@@ -73,8 +73,13 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
     {label:'有息負債／權益',value:ratio(latest!.debt,latest!.equity),unit:'倍',formula:'最新季有息負債 ÷ 普通股權益；不是總負債比'},
     {label:'TTM 營業現金流',value:ocf,unit:e.currency!,formula:'四季營業現金流加總'},
     {label:'TTM 自由現金流',value:fcf,unit:e.currency!,formula:'四季營業現金流 − 四季資本支出'},
-    {label:'TTM EPS（來源口徑）',value:sum(quarters,'eps'),unit:e.currency!+'/股',formula:'四個單季來源 EPS 加總；拆股或加權股數變動可能影響比較'},
+    {label:'TTM EPS（來源口徑）',value:new Set(quarters.map(q=>q.epsBasis??'unknown')).size===1?sum(quarters,'eps'):null,unit:e.currency!+'/股',formula:'四個單季同口徑 EPS 加總；基本與稀釋混用時不加總，拆股可能影響比較'},
   ];
+  const lastYear=annual.at(-1), priorYear=annual.at(-2);
+  if(lastYear && priorYear && contiguous([priorYear,lastYear],330,400)){
+    const growth=lastYear.revenue!=null && priorYear.revenue!=null && priorYear.revenue>0?(lastYear.revenue/priorYear.revenue-1)*100:null;
+    out.metrics.push({label:'最近完整年度營收年增率',value:growth,unit:'%',formula:`${lastYear.end} 年度營收 ÷ ${priorYear.end} 年度營收 − 1；歷史成長不代表未來預測`});
+  }
   if(shares==null || !Number.isFinite(shares) || shares<=0) out.reasons.push('缺少有效普通股股數。');
   if(!input.marketCap || input.marketCap<=0) out.reasons.push('缺少市值，無法核對股數與報價口徑。');
   if(shares && input.marketCap && Math.abs(input.price*shares/input.marketCap-1)>.15) out.reasons.push('股數與市值口徑不一致，可能有 ADR、股別或拆股差異。');
