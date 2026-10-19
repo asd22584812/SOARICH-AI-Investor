@@ -511,3 +511,9 @@ export async function fetchDynamicUsCandidates(): Promise<unknown> {
   usCandidatesCache = { until: Date.now() + 300000, promise };
   try { return await promise; } catch (error) { usCandidatesCache = undefined; throw error; }
 }
+
+export async function fetchStatementSeries(symbol: string, type: 'annual' | 'quarterly') {
+  return yahooFinance.fundamentalsTimeSeries(symbol, {
+    period1: new Date(Date.now() - 6 * 366 * 86400000), type, module: 'all',
+  }, { fetchOptions: { signal: AbortSignal.timeout(18000) } });
+}

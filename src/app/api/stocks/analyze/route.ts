@@ -3,6 +3,7 @@ import { buildResearchReport } from "@/lib/stock/research-report";
 import { getSecFinancials } from "@/lib/research/official";
 import { getTaiwanFinancials, getTaiwanReport } from "@/lib/research/taiwan";
 import { calculateScenarios } from "@/lib/research/scenarios";
+import { enrichResearch, enrichTaiwanCompany } from "@/lib/research/enrich";
 import { searchStock } from "@/lib/stock/yahoo";
 
 export const runtime = "nodejs";
@@ -21,7 +22,12 @@ export async function GET(request: NextRequest) {
   try {
     if (/^\d{4}(?:\.TW|\.TWO)?$/i.test(q) || /[\u4e00-\u9fff]/.test(q)) {
       const officialReport = await getTaiwanReport(q);
-      if (officialReport) return NextResponse.json(officialReport, { headers: { "Cache-Control": "no-store" } });
+      if (officialReport) {
+        const otc=officialReport.quoteSource==='TPEx';
+        await enrichResearch(officialReport,officialReport.symbol+(otc?'.TWO':'.TW'));
+        await enrichTaiwanCompany(officialReport,otc);
+        return NextResponse.json(officialReport, { headers: { "Cache-Control": "no-store" } });
+      }
     }
     const secSymbol = /^[A-Z]+(?:[.-][A-Z])?$/i.test(q) ? q.toUpperCase() : null;
     const secPending = secSymbol ? getSecFinancials(secSymbol).then(data => ({ data, error: null }), error => ({ data: null, error })) : null;
@@ -35,6 +41,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "無法取得股價資料" }, { status: 502 });
     }
 
+    const enriched = enrichResearch(analysis, snapshot.yahooSymbol);
     try {
       const prefetched = secPending && snapshot.yahooSymbol.toUpperCase() === secSymbol ? await secPending : null;
       if (prefetched?.error) throw prefetched.error;
@@ -50,6 +57,7 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       analysis.officialError = error instanceof Error ? error.message : "官方財報來源暫時無法取得";
     }
+    await enriched;
     return NextResponse.json(analysis, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[api/stocks/analyze]", error);

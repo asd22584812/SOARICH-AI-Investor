@@ -240,6 +240,9 @@ export interface AssetOverview {
 
 /** Public research response: raw vendor observations, never legacy heuristic ratings. */
 export interface StockResearchReport extends StockQuote {
+  statements?: import("@/lib/research/pricing").PricingEvidence;
+  entryValuation?: import("@/lib/research/pricing").EntryValuation;
+  company?: { descriptionSourceUrl?: string; description: string|null; sector:string|null; industry:string|null; website:string|null; people:{name:string;title:string}[]; sourceUrl:string; asOf:string|null };
   industry: string | null;
   financialProfile: Omit<FinancialProfile, "score">;
   financialCurrency: string | null;
