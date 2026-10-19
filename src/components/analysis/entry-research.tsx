@@ -7,7 +7,7 @@ export function EntryResearch({report:r}:{report:StockResearchReport}){
  <section className="glass-card rounded-3xl p-5 space-y-4">
   <h2 className="text-xl font-semibold text-brand">{v?.signal??'財報來源尚未取得'}</h2>
   {v?.status==='available' && <>
-   <div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-text-secondary">入場參考上限</p><strong className="text-xl">{money(v.entry)}</strong></div><div><p className="text-sm text-text-secondary">模型合理價（基準）</p><strong className="text-xl">{money(v.fair)}</strong></div></div>
+   <div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-text-secondary">零成長模型入場上限</p><strong className="text-xl">{money(v.entry)}</strong></div><div><p className="text-sm text-text-secondary">零成長參考價（非完整合理價）</p><strong className="text-xl">{money(v.fair)}</strong></div></div>
    <p>估值情境區間：{money(v.low)}～{money(v.high)}</p>
    <p>現價：{money(r.price)} · 相對基準安全邊際：{num(v.margin)}%</p>
    <p className="text-sm">方法：{v.method}。這是保守的零成長參考模型，不是市場目標價。</p>
@@ -19,7 +19,7 @@ export function EntryResearch({report:r}:{report:StockResearchReport}){
   <h2 className="text-lg font-semibold">財報明細與重新計算的指標</h2>
   <p className="text-sm">來源：{e.provider} · 財報幣別：{e.currency??'未確認'} · {v?.period??'期間尚不足以加總四季'}</p>
   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{v?.metrics.map(m=><div key={m.label} className="rounded-xl bg-white/5 p-3"><p className="text-xs text-text-secondary">{m.label}</p><p className="font-semibold break-all">{num(m.value)} {m.value==null?'':m.unit}</p><p className="mt-1 text-xs text-text-secondary">{m.formula}</p></div>)}</div>
-  {(['annual','quarterly'] as const).map(kind=><details key={kind} open={kind==='annual'}><summary className="cursor-pointer font-semibold">{kind==='annual'?'年度財報（12 個月）':'單季財報（3 個月，非年初累計）'}</summary><div className="overflow-x-auto py-3"><table className="text-xs whitespace-nowrap w-full"><thead><tr>{['期末','營收','股東淨利','EPS','營業現金流','資本支出','自由現金流'].map(h=><th key={h} className="p-2 text-right">{h}</th>)}</tr></thead><tbody>{e[kind].slice().reverse().map(row=><tr key={row.end} className="border-t border-white/10">{[row.end,num(row.revenue),num(row.income),num(row.eps),num(row.ocf),num(row.capex),num(row.fcf)].map((x,i)=><td key={i} className="p-2 text-right">{x}</td>)}</tr>)}</tbody></table></div><p className="text-xs text-text-secondary">金額以 {e.currency??'來源未提供幣別'} 元呈現，EPS 為每股金額；缺值保留，不以零補齊。</p></details>)}
+  {(['annual','quarterly'] as const).map(kind=><details key={kind} open={kind==='annual'}><summary className="cursor-pointer font-semibold">{kind==='annual'?'年度財報（12 個月）':'單季財報（3 個月，非年初累計）'}</summary><div className="overflow-x-auto py-3"><table className="text-xs whitespace-nowrap w-full"><thead><tr>{['期末','營收','股東淨利','EPS','營業現金流','資本支出','自由現金流'].map(h=><th key={h} className="p-2 text-right">{h}</th>)}</tr></thead><tbody>{e[kind].slice().reverse().map(row=><tr key={row.end} className="border-t border-white/10">{[row.end,num(row.revenue),num(row.income),row.eps==null?'未提供':num(row.eps)+(row.epsBasis==='basic'?'（基本）':row.epsBasis==='diluted'?'（稀釋）':''),num(row.ocf),num(row.capex),num(row.fcf)].map((x,i)=><td key={i} className="p-2 text-right">{x}</td>)}</tr>)}</tbody></table></div><p className="text-xs text-text-secondary">金額以 {e.currency??'來源未提供幣別'} 元呈現，EPS 為每股金額；缺值保留，不以零補齊。</p></details>)}
   {e.warnings.map(x=><p key={x} className="text-xs text-text-secondary">{x}</p>)}
   <a href={e.sourceUrl} target="_blank" rel="noreferrer" className="text-brand underline text-sm">核對 Yahoo 財報來源</a>
  </section>}

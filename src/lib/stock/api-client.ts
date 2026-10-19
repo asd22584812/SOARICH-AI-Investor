@@ -46,31 +46,13 @@ export async function searchStocksApi(
 }
 
 export async function fetchHomeMarketFeed(
-  market: Market, cursor?: number
+  market: Market, cursor?: number, signal?: AbortSignal
 ): Promise<HomeFeedResponse> {
-  const response = await fetch(`/api/stocks/recommendations?market=${market}${cursor == null ? "" : `&cursor=${cursor}`}`, {
-    cache: "no-store",
-  });
-  const data = await parseJson<HomeFeedResponse>(response);
-  return (
-    data ?? {
-      scanning: false,
-      message: "市場資料讀取失敗，請稍後重試",
-      feed: {
-        todayFocus: [],
-        undervalued: [],
-        highQuality: [],
-        moat: [],
-      },
-      sectionCounts: {
-        todayFocus: 0,
-        undervalued: 0,
-        highQuality: 0,
-        moat: 0,
-      },
-      lastScannedAt: null,
-    }
-  );
+  const response = await fetch(`/api/stocks/recommendations?market=${market}&cursor=${cursor??0}`, {cache:'no-store',signal});
+  if(!response.ok) throw new Error(`市場服務回應 ${response.status}`);
+  const data=await response.json() as HomeFeedResponse;
+  if(!data.researchRadar || data.assessmentStatus==='source_error') throw new Error(data.message??'市場來源資料不完整');
+  return data;
 }
 
 export async function fetchPopularStocks(
