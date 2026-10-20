@@ -2,19 +2,21 @@ import type { StockResearchReport } from '@/types/stock';
 const num=(n:number|null|undefined)=>n==null?'未提供':n.toLocaleString('zh-TW',{maximumFractionDigits:2});
 export function EntryResearch({report:r}:{report:StockResearchReport}){
  const v=r.entryValuation,e=r.statements,c=r.company;
- const money=(n:number|null|undefined)=>n==null?'未計算':`${r.currency} ${num(n)}`;
+ const money=(n:number|null|undefined)=>n==null?'未計算':`${r.currency==='TWD'?'NT$':'US$'}${num(n)}`;
  return <>
  <section className="glass-card rounded-3xl p-5 space-y-4">
   <h2 className="text-xl font-semibold text-brand">{v?.signal??'財報來源尚未取得'}</h2>
   {v?.status==='available' && <>
-   <div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-text-secondary">零成長模型入場上限</p><strong className="text-xl">{money(v.entry)}</strong></div><div><p className="text-sm text-text-secondary">零成長參考價（非完整合理價）</p><strong className="text-xl">{money(v.fair)}</strong></div></div>
+   <div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-text-secondary">有安全邊際的入場上限</p><strong className="text-xl">{money(v.entry)}</strong></div><div><p className="text-sm text-text-secondary">模型合理價（基準情境）</p><strong className="text-xl">{money(v.fair)}</strong></div></div>
    <p>估值情境區間：{money(v.low)}～{money(v.high)}</p>
    <p>現價：{money(r.price)} · 相對基準安全邊際：{num(v.margin)}%</p>
-   <p className="text-sm">方法：{v.method}。這是保守的零成長參考模型，不是市場目標價。</p>
-   <details className="text-sm space-y-2"><summary className="cursor-pointer text-brand">展開公式與實際輸入數字</summary><p>常態 EPS：{money(v.normalizedEps)}／股；常態 FCF：{money(v.normalizedFcfPerShare)}／股；普通股數：{num(v.shares)}</p>{v.formulas.map(x=><p key={x}>{x}</p>)}</details>
+   <p className="text-sm">方法：{v.method}。價格由財報與下列假設計算；不是分析師共識目標價。</p>
+   <div className="grid grid-cols-3 gap-2">{v.scenarios?.map(s=><div key={s.label} className="rounded-xl bg-white/5 p-3"><p className="text-sm">{s.label}</p><strong>{money(s.value)}</strong><p className="text-xs text-text-secondary">前五年成長 {(s.growth*100).toFixed(1)}%<br/>折現率 {(s.discount*100).toFixed(0)}%<br/>終值成長 {(s.terminalGrowth*100).toFixed(0)}%</p></div>)}</div>
+   <details className="text-sm space-y-2"><summary className="cursor-pointer text-brand">展開公式與實際輸入數字</summary><p>估值每股盈餘：{money(v.normalizedEps)}／股；TTM FCF：{money(v.normalizedFcfPerShare)}／股；普通股數：{num(v.shares)}</p>{v.formulas.map(x=><p key={x}>{x}</p>)}</details>
   </>}
   {(v?.reasons??r.valuationReasons).map(x=><p key={x} className="text-sm text-text-secondary">{x}</p>)}
  </section>
+ {v?.guide && <section className="glass-card rounded-3xl p-5 space-y-4"><h2 className="text-lg font-semibold">你的價值投資攻略 · 財報檢核</h2><p className="text-sm text-text-secondary">門檻價與模型合理價分開看；不將缺資料算成通過，也不合成巴菲特評分。</p>{v.guide.map(g=><div key={g.label} className="border-t border-white/10 pt-3"><div className="flex justify-between gap-3"><strong className="text-sm">{g.label}</strong><span className="text-brand text-sm">{g.price!=null?money(g.price):g.result}</span></div><p className="mt-1 text-xs text-text-secondary">{g.note}</p></div>)}<a className="text-brand underline text-xs" href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/invfables/peratio.htm" target="_blank" rel="noreferrer">估值方法參考：NYU — 本益比與成長、配發能力及風險</a></section>}
  {e && <section className="glass-card rounded-3xl p-5 space-y-4">
   <h2 className="text-lg font-semibold">財報明細與重新計算的指標</h2>
   <p className="text-sm">來源：{e.provider} · 財報幣別：{e.currency??'未確認'} · {v?.period??'期間尚不足以加總四季'}</p>
