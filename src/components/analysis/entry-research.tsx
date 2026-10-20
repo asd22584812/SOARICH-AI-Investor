@@ -8,7 +8,7 @@ export function EntryResearch({report:r}:{report:StockResearchReport}){
   <h2 className="text-xl font-semibold text-brand">{v?.signal??'財報來源尚未取得'}</h2>
   {v?.status==='available' && <>
    <div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-text-secondary">有安全邊際的入場上限</p><strong className="text-xl">{money(v.entry)}</strong></div><div><p className="text-sm text-text-secondary">模型合理價（基準情境）</p><strong className="text-xl">{money(v.fair)}</strong></div></div>
-   <p>估值情境區間：{money(v.low)}～{money(v.high)}</p>
+   {v.high!=null && <p>估值情境區間：{money(v.low)}～{money(v.high)}</p>}
    <p>現價：{money(r.price)} · 相對基準安全邊際：{num(v.margin)}%</p>
    <p className="text-sm">方法：{v.method}。價格由財報與下列假設計算；不是分析師共識目標價。</p>
    <div className="grid grid-cols-3 gap-2">{v.scenarios?.map(s=><div key={s.label} className="rounded-xl bg-white/5 p-3"><p className="text-sm">{s.label}</p><strong>{money(s.value)}</strong><p className="text-xs text-text-secondary">前五年成長 {(s.growth*100).toFixed(1)}%<br/>折現率 {(s.discount*100).toFixed(0)}%<br/>終值成長 {(s.terminalGrowth*100).toFixed(0)}%</p></div>)}</div>
@@ -16,7 +16,8 @@ export function EntryResearch({report:r}:{report:StockResearchReport}){
   </>}
   {(v?.reasons??r.valuationReasons).map(x=><p key={x} className="text-sm text-text-secondary">{x}</p>)}
  </section>
- {v?.guide && <section className="glass-card rounded-3xl p-5 space-y-4"><h2 className="text-lg font-semibold">你的價值投資攻略 · 財報檢核</h2><p className="text-sm text-text-secondary">門檻價與模型合理價分開看；不將缺資料算成通過，也不合成巴菲特評分。</p>{v.guide.map(g=><div key={g.label} className="border-t border-white/10 pt-3"><div className="flex justify-between gap-3"><strong className="text-sm">{g.label}</strong><span className="text-brand text-sm">{g.price!=null?money(g.price):g.result}</span></div><p className="mt-1 text-xs text-text-secondary">{g.note}</p></div>)}<a className="text-brand underline text-xs" href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/invfables/peratio.htm" target="_blank" rel="noreferrer">估值方法參考：NYU — 本益比與成長、配發能力及風險</a></section>}
+ {v?.models && <section className="glass-card rounded-3xl p-5 space-y-4"><h2 className="text-lg font-semibold">各種估值方法分開看</h2>{v.models.map(m=><div key={m.name} className="border-t border-white/10 pt-3 space-y-2"><h3 className="font-semibold">{m.name}</h3><p className="text-brand">{m.fair==null?'必要輸入尚不足':money(m.fair)}</p>{m.low!=null && <p className="text-sm">6% 殖利率價 {money(m.low)} · 4% 殖利率價 {money(m.high)}</p>}<p className="text-sm">{m.formula}</p><details className="text-xs text-text-secondary"><summary className="cursor-pointer">資料依據與適用限制</summary><p>{m.note}</p><a href={m.sourceUrl} className="underline" target="_blank" rel="noreferrer">核對來源</a></details></div>)}</section>}
+ {v?.guide && <details className="glass-card rounded-3xl p-5 space-y-4"><summary className="cursor-pointer text-lg font-semibold">價值投資攻略檢核（展開）</summary><p className="text-sm text-text-secondary">門檻價與模型合理價分開看；不將缺資料算成通過，也不合成巴菲特評分。</p>{v.guide.map(g=><div key={g.label} className="border-t border-white/10 pt-3"><div className="flex justify-between gap-3"><strong className="text-sm">{g.label}</strong><span className="text-brand text-sm">{g.price!=null?money(g.price):g.result}</span></div><p className="mt-1 text-xs text-text-secondary">{g.note}</p></div>)}<a className="text-brand underline text-xs" href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/invfables/peratio.htm" target="_blank" rel="noreferrer">估值方法參考：NYU — 本益比與成長、配發能力及風險</a></details>}
  {e && <section className="glass-card rounded-3xl p-5 space-y-4">
   <h2 className="text-lg font-semibold">財報明細與重新計算的指標</h2>
   <p className="text-sm">來源：{e.provider} · 財報幣別：{e.currency??'未確認'} · {v?.period??'期間尚不足以加總四季'}</p>
