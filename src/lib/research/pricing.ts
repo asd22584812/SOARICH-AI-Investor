@@ -1,4 +1,4 @@
-/** Transparent no-growth capitalization scenarios, not predictions or a probability of profit. */
+/** Dated evidence and explicit reinvestment/earnings valuation scenarios. */
 export interface StatementRow {
   end: string; months: 3 | 12; epsBasis?: "diluted" | "basic" | "unknown";
   revenue: number | null; income: number | null; eps: number | null;
@@ -17,6 +17,8 @@ export interface EntryValuation {
   margin: number | null; eligible: boolean; signal: string;
   normalizedEps: number | null; normalizedFcfPerShare: number | null;
   shares: number | null; period: string | null; formulas: string[];
+  scenarios?: {label:string; growth:number; discount:number; terminalGrowth:number; terminalRoe:number; value:number}[];
+  guide?: {label:string; result:string; price:number|null; note:string}[];
   metrics: { label: string; value: number | null; unit: string; formula: string }[];
 }
 const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v) ? v : null;
@@ -43,10 +45,25 @@ export function parseStatementRows(input: unknown, months: 3 | 12, now = Date.no
   return [...rows.values()].sort((a,b)=>a.end.localeCompare(b.end));
 }
 const sum = (rows: StatementRow[], key: keyof StatementRow): number | null => rows.every(r=>typeof r[key]==='number' && Number.isFinite(r[key])) ? rows.reduce((s,r)=>s+Number(r[key]),0) : null;
-const median = (values: number[]) => values.slice().sort((a,b)=>a-b)[Math.floor(values.length/2)];
 const ratio = (a: number | null, b: number | null, percent = false) => a!=null && b!=null && b>0 ? a/b*(percent?100:1) : null;
+/** Equity earnings less reinvestment; not enterprise FCF or actual promised dividends.
+ * Five growth years, five-year fade, then stable earnings and reinvestment. */
+export function earningsValue(eps:number, roe:number, growth:number, discount:number, terminalGrowth=0.02) {
+  if (![eps,roe,growth,discount,terminalGrowth].every(Number.isFinite) || eps<=0 || roe<=0 || growth<0 || growth>=roe || discount<=terminalGrowth || terminalGrowth<0) return NaN;
+  const terminalRoe=Math.max(discount,Math.min(roe,0.15));
+  let earnings=eps, pv=0;
+  for(let year=1;year<=10;year++){
+    const fade=Math.max(0,(year-5)/5);
+    const g=growth+(terminalGrowth-growth)*fade;
+    const returnOnEquity=roe+(terminalRoe-roe)*fade;
+    earnings*=1+g;
+    pv+=earnings*(1-g/returnOnEquity)/Math.pow(1+discount,year);
+  }
+  pv+=earnings*(1+terminalGrowth)*(1-terminalGrowth/terminalRoe)/(discount-terminalGrowth)/Math.pow(1+discount,10);
+  return pv;
+}
 export function calculateEntry(e: PricingEvidence, input: {price:number; currency:string; asOf:string|null; sector:string|null; marketCap:number|null; shares?:number|null}, now=Date.now()): EntryValuation {
-  const out: EntryValuation = {status:'unavailable',method:'零成長獲利／現金流資本化',reasons:[],fair:null,low:null,high:null,entry:null,margin:null,eligible:false,signal:'資料不足',normalizedEps:null,normalizedFcfPerShare:null,shares:null,period:null,formulas:[],metrics:[]};
+  const out: EntryValuation = {status:'unavailable',method:'兩階段盈餘再投資折現（含五年成長淡出）',reasons:[],fair:null,low:null,high:null,entry:null,margin:null,eligible:false,signal:'資料不足',normalizedEps:null,normalizedFcfPerShare:null,shares:null,period:null,formulas:[],metrics:[]};
   const annual=e.annual.slice(-3), quarters=e.quarterly.slice(-4), latest=quarters.at(-1);
   const age=(d:string|null|undefined)=>d && Number.isFinite(Date.parse(d))?(now-Date.parse(d))/86400000:Infinity;
   const contiguous=(rows:StatementRow[],min:number,max:number)=>rows.every((r,i)=>i===0 || (Date.parse(r.end)-Date.parse(rows[i-1].end))/86400000>=min && (Date.parse(r.end)-Date.parse(rows[i-1].end))/86400000<=max);
@@ -80,33 +97,53 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
     const growth=lastYear.revenue!=null && priorYear.revenue!=null && priorYear.revenue>0?(lastYear.revenue/priorYear.revenue-1)*100:null;
     out.metrics.push({label:'最近完整年度營收年增率',value:growth,unit:'%',formula:`${lastYear.end} 年度營收 ÷ ${priorYear.end} 年度營收 − 1；歷史成長不代表未來預測`});
   }
+  const epsTtm=out.metrics.find(m=>m.label.startsWith('TTM EPS'))?.value??null;
+  const book=shares && latest?.equity!=null?latest.equity/shares:null;
+  out.guide=[
+    {label:'EPS 十年持續成長',result:'未驗證',price:null,note:`目前取得 ${e.annual.filter(y=>y.eps!=null).length} 年 EPS；不足十年不能給通過分數。`},
+    {label:'股息十年穩定／殖利率 4%',result:'未驗證',price:null,note:'尚無完整每股股息紀錄。殖利率不是股息成長率；門檻價 = 可持續年度每股股息 ÷ 4%。'},
+    {label:'FCF 十年為正',result:'未驗證',price:null,note:`目前取得 ${e.annual.filter(y=>y.fcf!=null).length} 年現金流；十年連續性尚不足。`},
+    {label:'ROE > 15%',result:ratio(income,averageEquity)==null?'未提供':ratio(income,averageEquity)!>.15?'本期達標':'本期未達標',price:null,note:'以期初期末平均普通股權益計算；不代表十年穩定，高槓桿亦可能推升 ROE。'},
+    {label:'利息保障倍數 > 4／10',result:'未驗證',price:null,note:'需同期間 EBIT ÷ 利息費用；缺值不代表零負債，也不給分。'},
+    {label:'淨利率 > 10%／20%',result:ratio(income,revenue)==null?'未提供':`${(ratio(income,revenue)!*100).toFixed(2)}%`,price:null,note:'依產業比較，銀行等不同收入結構不能直接橫向排名。'},
+    {label:'攻略 P/E = 12 門檻價',result:epsTtm!=null&&epsTtm>0?'可計算':'EPS 口徑不足',price:e.currency===input.currency&&epsTtm!=null&&epsTtm>0?epsTtm*12:null,note:'TTM 同口徑 EPS × 12；只是固定倍數門檻，不是已證明的合理價。'},
+    {label:'攻略 P/B = 0.8 門檻價',result:book!=null&&book>0?'可計算':'權益不足',price:e.currency===input.currency&&book!=null&&book>0?book*.8:null,note:'普通股帳面權益 ÷ 股數 × 0.8；帳面價值不等於清算可回收金額。'},
+    {label:'PEG < 1',result:'未驗證',price:null,note:'需要可比且經拆股調整的 1／3／5／10 年 EPS 與未來成長假設；不以營收成長代替 EPS 成長。'},
+  ];
   if(shares==null || !Number.isFinite(shares) || shares<=0) out.reasons.push('缺少有效普通股股數。');
   if(!input.marketCap || input.marketCap<=0) out.reasons.push('缺少市值，無法核對股數與報價口徑。');
   if(shares && input.marketCap && Math.abs(input.price*shares/input.marketCap-1)>.15) out.reasons.push('股數與市值口徑不一致，可能有 ADR、股別或拆股差異。');
   if(income==null || income<=0 || annual.some(y=>y.income==null || y.income<=0)) out.reasons.push('最近四季或歷年獲利不足，正盈餘模型不適用。');
-  if(out.reasons.length) return out;
-  const normalIncome=Math.min(income!,median(annual.map(y=>y.income!)));
-  out.normalizedEps=normalIncome/shares!;
+  if(out.reasons.length) {out.guide?.forEach(g=>{g.price=null;});return out;}
+  out.normalizedEps=income!/shares!;
   const financial=/financial|bank|insurance|金融|銀行|保險/i.test(input.sector??'');
-  const realEstate=/real estate|reit/i.test(input.sector??'');
-  if(realEstate) {out.reasons.push('不動產業先排除：需區分 REIT 的 FFO/AFFO 與開發商資產估值，不能統一套用本模型。');return out;}
-  let perShare=out.normalizedEps;
+  if(/real estate|reit/i.test(input.sector??'')) {out.reasons.push('不動產需個別 FFO/AFFO 或資產估值，本盈餘模型不適用。');return out;}
+  const roe=ratio(income,averageEquity);
+  if(roe==null || roe<=0 || roe>1){out.reasons.push('缺少可靠平均權益或 ROE 超過 100%，需先核對槓桿與一次性損益。');return out;}
   if(!financial){
-    if(fcf==null || fcf<=0 || annual.some(y=>y.fcf==null || y.fcf<=0)){out.reasons.push('現金流不足或為負，不能支持本模型的入場價。');return out;}
-    out.normalizedFcfPerShare=Math.min(fcf,median(annual.map(y=>y.fcf!)))/shares!;
-    perShare=Math.min(perShare,out.normalizedFcfPerShare);
-  } else out.method='金融股零成長盈餘資本化（不套用一般企業 FCF）';
-  out.low=perShare/.12;out.fair=perShare/.10;out.high=perShare/.08;
-  out.entry=Math.min(out.low,out.fair*.80);out.margin=(out.fair-input.price)/out.fair*100;
+    if(fcf==null || fcf<=0 || annual.some(y=>y.fcf==null || y.fcf<=0)){out.reasons.push('連續年度與 TTM 現金流不足，不能確認盈餘可支持本模型。');return out;}
+    out.normalizedFcfPerShare=fcf/shares!;
+  }
+  const first=annual[0],last=annual[2];
+  if(first.revenue==null || first.revenue<=0 || last.revenue==null || last.revenue<=0){out.reasons.push('年度營收不足，無法檢查成長假設。');return out;}
+  const revenueGrowth=Math.pow(last.revenue/first.revenue,1/2)-1;
+  const incomeGrowth=Math.pow(last.income!/first.income!,1/2)-1;
+  const growth=Math.max(0,Math.min(revenueGrowth,incomeGrowth,.15,roe*.75));
+  out.scenarios=[['保守',growth*.5,.12],['基準',growth,.10],['樂觀',Math.min(growth*1.25,.20,roe*.8),.08]].map(([label,g,r])=>({label:String(label),growth:Number(g),discount:Number(r),terminalGrowth:.02,terminalRoe:Math.max(Number(r),Math.min(roe,.15)),value:earningsValue(out.normalizedEps!,roe,Number(g),Number(r))}));
+  out.low=Math.min(...out.scenarios.map(s=>s.value));out.fair=out.scenarios[1].value;out.high=Math.max(...out.scenarios.map(s=>s.value));
+  out.entry=Math.min(out.low,out.fair*.8);out.margin=(out.fair-input.price)/out.fair*100;
   out.status='available';out.eligible=!!input.sector && input.price<=out.entry;
-  out.signal=out.eligible?'符合模型入場條件':input.price<=out.entry?'價格達標，產業資料待核對':input.price<=out.fair?'接近合理區間，等待安全邊際':'高於本模型合理價';
+  out.signal=out.eligible?'進入模型買入研究區':input.price<=out.entry?'價格達標，產業待核對':input.price<=out.fair?'低於基準合理價，安全邊際尚不足':'高於模型基準合理價';
   out.formulas=[
-    `常態淨利 = min(TTM 歸屬股東淨利, 最近三個完整年度淨利中位數)；常態 EPS = 常態淨利 ÷ 最新普通股數。`,
-    financial?'金融股使用常態 EPS，不使用營業現金流扣資本支出。':'常態 FCF/股 = min(TTM FCF, 三年 FCF 中位數) ÷ 最新普通股數；估值基數取常態 EPS 與常態 FCF/股較低值。',
-    '零成長資本化：每股價值 = 每股常態獲利基數 ÷ 要求報酬率；保守 12%、基準 10%、樂觀 8%。這些是模型假設，不是市場共識。',
-    '入場參考上限 = min(保守價, 基準價 × 80%)；安全邊際 = (基準價 − 現價) ÷ 基準價。',
+    `起始每股盈餘 = TTM 股東淨利 ${income} ÷ 最新普通股數 ${shares} = ${out.normalizedEps} ${input.currency}/股。這是估值每股基數，不是加權平均股數的公告 EPS。`,
+    `年度營收 CAGR ${(revenueGrowth*100).toFixed(2)}%；股東淨利 CAGR ${(incomeGrowth*100).toFixed(2)}%；期間 ${first.end}～${last.end}（兩年跨度）。基準成長取兩者較低，限制 0～15% 且不超過 ROE 的 75%。衰退公司此假設可能過度樂觀。`,
+    `ROE = TTM 淨利 ÷ 平均普通股權益 = ${(roe*100).toFixed(2)}%。模型保留比例 = 成長率 ÷ ROE；可分配盈餘 = 預測盈餘 × (1 − 保留比例)，不是實際承諾股息。`,
+    '第 1～5 年維持情境成長，第 6～10 年成長率線性收斂至 2%；ROE 同期收斂至 min(目前 ROE,15%)，但不低於折現率。',
+    '合理價 = Σ[第 t 年每股可分配盈餘 ÷ (1+r)^t] + [第 11 年每股可分配盈餘 ÷ (r−2%)] ÷ (1+r)^10。折現率為 12%／10%／8% 情境假設，並非已估計的個股資金成本。',
+    '入場上限 = min(保守情境價, 基準合理價 × 80%)。安全邊際 = (基準合理價 − 現價) ÷ 基準合理價。模型不使用現價推導合理價。',
   ];
-  out.reasons.push('假設獲利不成長且能長期維持，可能低估成長公司，也可能高估衰退或景氣高峰公司。','此為可追溯的簡化模型，不是完整企業估值、價格預測或不賠保證。');
+  out.reasons.push('盈餘再投資模型假設未來獲利可轉為股東可分配資金；未調整一次性損益、未來稀釋及產業循環，應核對情境，不能當成保證成交目標或獲利機率。');
+  if(financial)out.reasons.push('金融業使用盈餘與權益；未核對監管資本、呆帳及實際配息能力，仍須個別研究。');
   if(!input.sector)out.reasons.push('產業尚未核對，不列入首頁入場候選。');
   return out;
 }
