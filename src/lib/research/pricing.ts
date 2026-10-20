@@ -17,6 +17,7 @@ export interface EntryValuation {
   margin: number | null; eligible: boolean; signal: string;
   normalizedEps: number | null; normalizedFcfPerShare: number | null;
   shares: number | null; period: string | null; formulas: string[];
+  models?: import("./classic").ClassicModel[];
   scenarios?: {label:string; growth:number; discount:number; terminalGrowth:number; terminalRoe:number; value:number}[];
   guide?: {label:string; result:string; price:number|null; note:string}[];
   metrics: { label: string; value: number | null; unit: string; formula: string }[];
@@ -113,7 +114,8 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
   if(shares==null || !Number.isFinite(shares) || shares<=0) out.reasons.push('缺少有效普通股股數。');
   if(!input.marketCap || input.marketCap<=0) out.reasons.push('缺少市值，無法核對股數與報價口徑。');
   if(shares && input.marketCap && Math.abs(input.price*shares/input.marketCap-1)>.15) out.reasons.push('股數與市值口徑不一致，可能有 ADR、股別或拆股差異。');
-  if(income==null || income<=0 || annual.some(y=>y.income==null || y.income<=0)) out.reasons.push('最近四季或歷年獲利不足，正盈餘模型不適用。');
+  if(income==null || annual.some(y=>y.income==null)) out.reasons.push('來源缺少單季或年度淨利欄位，無法完成此盈餘模型；不表示公司虧損。');
+  else if(income<=0 || annual.some(y=>y.income!<=0)){out.signal='盈餘模型不適用';out.reasons.push('來源獲利為零或負值，需改查資產或其他估值方法。');}
   if(out.reasons.length) {out.guide?.forEach(g=>{g.price=null;});return out;}
   out.normalizedEps=income!/shares!;
   const financial=/financial|bank|insurance|金融|銀行|保險/i.test(input.sector??'');
@@ -121,7 +123,7 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
   const roe=ratio(income,averageEquity);
   if(roe==null || roe<=0 || roe>1){out.reasons.push('缺少可靠平均權益或 ROE 超過 100%，需先核對槓桿與一次性損益。');return out;}
   if(!financial){
-    if(fcf==null || fcf<=0 || annual.some(y=>y.fcf==null || y.fcf<=0)){out.reasons.push('連續年度與 TTM 現金流不足，不能確認盈餘可支持本模型。');return out;}
+    if(fcf==null || fcf<=0 || annual.some(y=>y.fcf==null || y.fcf<=0)){out.signal=fcf==null||annual.some(y=>y.fcf==null)?'現金流欄位缺漏':'現金流條件未通過';out.reasons.push(fcf==null||annual.some(y=>y.fcf==null)?'來源缺少現金流欄位；不等於現金流為零。':`TTM 自由現金流 ${fcf} ${input.currency}；TTM 或歷年存在非正現金流，此盈餘模型暫不採用，其他方法獨立評估。`);return out;}
     out.normalizedFcfPerShare=fcf/shares!;
   }
   const first=annual[0],last=annual[2];

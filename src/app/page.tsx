@@ -52,7 +52,7 @@ function HomePageContent() {
     <SegmentControl options={[{ value: "TW" as const, label: "台股" }, { value: "US" as const, label: "美股" }]} value={marketFilter} onChange={setMarketFilter} />
     <section className="glass-card rounded-3xl p-5 space-y-3">
       <h2 className="text-lg font-semibold">現在值得研究的入場候選</h2>
-      <p role="status" className="text-sm text-text-secondary">{error ?? (busy ? "正在逐批核對財報與價格，完成的結果會立即顯示…" : "已完成本輪核對；現價須低於保守估值及基準合理價八折。")}</p>
+      <p role="status" className="text-sm text-text-secondary">{error ?? (busy ? "正在逐批核對財報與價格，完成的結果會立即顯示…" : "已完成本輪核對；以下股票通過價格條件，仍需核對公司風險。")}</p>
       {radar && <p className="text-sm text-brand">{radar.candidates.length} 檔入場候選 · 已核對 {radar.candidates.length+(radar.excluded?.length??0)} 檔</p>}
 
       <button type="button" className="rounded-xl border border-brand/40 px-4 py-2 text-brand" onClick={() => { setResult(null); setCursor(0); setNextCursor(0); setBusy(true); setError(null); setAttempt(n => n + 1); }} disabled={busy}>重新讀取</button>
@@ -63,8 +63,10 @@ function HomePageContent() {
       {radar?.candidates.map(stock => <article key={stock.symbol} className="glass-card rounded-2xl p-5 space-y-3">
         <Link href={`/analysis?symbol=${encodeURIComponent(stock.symbol)}`} className="block text-lg font-semibold text-brand">{stock.name}（{stock.symbol}）</Link>
         <p>{stock.currency === "TWD" ? "NT$" : "US$"}{stock.price.toLocaleString("zh-TW", { maximumFractionDigits: 2 })} · 本益比 {stock.pe.toFixed(2)} 倍</p>
-        <p className="text-brand">入場上限 {stock.currency} {stock.entry?.toFixed(2)} · 基準合理價 {stock.fair?.toFixed(2)}</p>
-        <p className="text-sm text-text-secondary">{stock.reason}</p>
+        <p className="text-brand font-semibold">價格符合買入評估區</p>
+        <div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-text-secondary">估值參考價</p><strong>{stock.currency==='TWD'?'NT$':'US$'}{stock.fair?.toFixed(2)}</strong></div><div><p className="text-xs text-text-secondary">保守買點以下</p><strong>{stock.currency==='TWD'?'NT$':'US$'}{stock.entry?.toFixed(2)}</strong></div></div>
+        <p>現價低於估值參考約 {stock.margin?.toFixed(1)}%</p><p className="text-xs text-text-secondary">可列入買入研究；尚不代表公司風險已審查通過。</p>
+        <details className="text-xs text-text-secondary"><summary className="cursor-pointer">為什麼列入？</summary><p>{stock.reason}</p></details>
         <p className="text-xs text-text-secondary">報價日期：{stock.asOf ?? "未提供"}</p>
         <a href={stock.sourceUrl} target="_blank" rel="noreferrer" className="text-sm text-brand underline">查看篩選資料來源</a>
       </article>)}
@@ -72,7 +74,7 @@ function HomePageContent() {
     <details className="glass-card rounded-2xl p-5 text-sm"><summary className="cursor-pointer text-brand">資料覆蓋與篩選方法</summary><p className="mt-3">{radar?.description}</p><p className="mt-2 text-text-secondary">{radar?.coverage}</p><p>來源日期：{radar?.sourceDate??'讀取中'}</p></details>
     {radar?.excluded && radar.excluded.length>0 && <details className="p-5 text-sm"><summary className="cursor-pointer text-brand">查看本次排除原因（不是入場候選）</summary>{radar.excluded.map(x=><p key={x.symbol} className="mt-2 text-text-secondary">{x.symbol}：{x.reason}</p>)}</details>}
     <AssetHero />
-    <p className="text-xs text-text-secondary">成長估值與攻略版 v4 · 估值與初篩不代表獲利機率。</p>
+    <p className="text-xs text-text-secondary">獨立估值方法版 v5 · 估值與初篩不代表獲利機率。</p>
   </div>;
 }
 export default function HomePage() {

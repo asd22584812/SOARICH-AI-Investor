@@ -52,12 +52,13 @@ export async function getEntryRadar(market: 'TW'|'US',offset=0): Promise<Researc
   const results=await Promise.all(radar.candidates.map(async candidate=>{
     try{
       const {evidence,summary}=await getDatedEvidence(candidate.symbol+(market==='TW'?'.TW':''));
-      const value=calculateEntry(evidence,{price:candidate.price,currency:candidate.currency,asOf:candidate.asOf,sector:summary?.assetProfile?.sector??null,marketCap:summary?.price?.marketCap??null,shares:summary?.defaultKeyStatistics?.sharesOutstanding??null});
+      let value=calculateEntry(evidence,{price:candidate.price,currency:candidate.currency,asOf:candidate.asOf,sector:summary?.assetProfile?.sector??null,marketCap:summary?.price?.marketCap??null,shares:summary?.defaultKeyStatistics?.sharesOutstanding??null});
+      if(market==='TW'){const {classicTaiwan}=await import('./classic');value=await classicTaiwan(candidate.symbol,candidate.price,candidate.asOf,value,summary?.assetProfile?.industry??summary?.assetProfile?.sector??null);}
       if(value.status!=='available'){unavailable++;excluded.push({symbol:candidate.symbol,reason:value.reasons.join(' ')});return null;}
       if(!value.eligible){aboveEntry++;excluded.push({symbol:candidate.symbol,reason:value.signal});return null;}
-      return {...candidate,entry:value.entry!,fair:value.fair!,margin:value.margin!,reason:`通過盈餘再投資估值價格條件：現價不高於入場上限；連續三年與最近四季獲利可用。${value.method}。需再核對個別公司風險。`};
+      return {...candidate,entry:value.entry!,fair:value.fair!,margin:value.margin!,reason:`現價低於所列估值與保守買點。${value.method}。需再核對個別公司風險。`};
     }catch{unavailable++;excluded.push({symbol:candidate.symbol,reason:"財報來源讀取失敗，可稍後重新核對。"});return null;}
   }));
   const candidates=results.filter((x):x is NonNullable<typeof x>=>x!=null).sort((a,b)=>b.margin-a.margin);
-  return {...radar,candidates,excluded,description:'入場價格候選：以連續三年及最近四季財報計算成長及再投資折現估值，現價須低於基準價八折與保守價；不保證獲利。',coverage:radar.coverage+` 本批從初篩第 ${offset+1} 檔起評估 ${radar.candidates.length} 檔動態初篩股票；符合 ${candidates.length} 檔，未達價格或產業條件 ${aboveEntry} 檔，資料不足或模型不適用 ${unavailable} 檔。未列入不代表沒有投資價值。`};
+  return {...radar,candidates,excluded,description:'價格篩選候選：台灣上市股以歷史倍數參考及 85 折買點比較；美股保留盈餘情境與保守價。通過價格條件不等於完成公司風險審查。',coverage:radar.coverage+` 本批從初篩第 ${offset+1} 檔起評估 ${radar.candidates.length} 檔動態初篩股票；符合 ${candidates.length} 檔，未達價格或產業條件 ${aboveEntry} 檔，資料不足或模型不適用 ${unavailable} 檔。未列入不代表沒有投資價值。`};
 }

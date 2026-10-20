@@ -37,6 +37,9 @@ export async function enrichResearch(report:StockResearchReport,yahooSymbol:stri
       }else evidence.warnings.push('同期間單季營收加總已與交易所累計營收比對，差異不超過 2%；此核對不代表其他欄位均已驗證。');
     }
   }
+  if(report.market==='TW' && !yahooSymbol.endsWith('.TWO')){
+    try {const {classicTaiwan}=await import('./classic');report.entryValuation=await classicTaiwan(report.symbol,report.price,report.quoteDate??report.quoteAsOf??null,report.entryValuation,p?.industry??p?.sector??null);}catch{report.entryValuation.reasons.push('歷史倍數來源讀取失敗，此次未套用歷史估值。');}
+  }
   report.valuationReasons=report.entryValuation.status==='available'?['估值使用下方列明期間的財報；公式、報酬率假設及安全邊際可逐項核對。']:report.entryValuation.reasons;
   return report;
 }
