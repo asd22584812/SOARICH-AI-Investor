@@ -99,7 +99,7 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
     out.metrics.push({label:'最近完整年度營收年增率',value:growth,unit:'%',formula:`${lastYear.end} 年度營收 ÷ ${priorYear.end} 年度營收 − 1；歷史成長不代表未來預測`});
   }
   const epsTtm=out.metrics.find(m=>m.label.startsWith('TTM EPS'))?.value??null;
-  const book=shares && latest?.equity!=null?latest.equity/shares:null;
+  const book=shares && latest?.equity!=null && latest.equity>0?latest.equity/shares:null;
   out.guide=[
     {label:'EPS 十年持續成長',result:'未驗證',price:null,note:`目前取得 ${e.annual.filter(y=>y.eps!=null).length} 年 EPS；不足十年不能給通過分數。`},
     {label:'股息十年穩定／殖利率 4%',result:'未驗證',price:null,note:'尚無完整每股股息紀錄。殖利率不是股息成長率；門檻價 = 可持續年度每股股息 ÷ 4%。'},
@@ -132,8 +132,41 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
   const incomeGrowth=Math.pow(last.income!/first.income!,1/2)-1;
   const growth=Math.max(0,Math.min(revenueGrowth,incomeGrowth,.15,roe*.75));
   out.scenarios=[['保守',growth*.5,.12],['基準',growth,.10],['樂觀',Math.min(growth*1.25,.20,roe*.8),.08]].map(([label,g,r])=>({label:String(label),growth:Number(g),discount:Number(r),terminalGrowth:.02,terminalRoe:Math.max(Number(r),Math.min(roe,.15)),value:earningsValue(out.normalizedEps!,roe,Number(g),Number(r))}));
-  out.low=Math.min(...out.scenarios.map(s=>s.value));out.fair=out.scenarios[1].value;out.high=Math.max(...out.scenarios.map(s=>s.value));
-  out.entry=Math.min(out.low,out.fair*.8);out.margin=(out.fair-input.price)/out.fair*100;
+  const scenarioValues=out.scenarios.map(s=>s.value).filter(Number.isFinite);
+  let fair=out.scenarios[1]?.value ?? NaN;
+  let low=scenarioValues.length?Math.min(...scenarioValues):NaN;
+  let high=scenarioValues.length?Math.max(...scenarioValues):NaN;
+
+  // 美股課程門檻（圖三）：資產股 PB0.8、成長股 PE12、股息股殖利率 4%
+  const pe12=out.normalizedEps>0?out.normalizedEps*12:null;
+  const pb08=book!=null&&book>0?book*0.8:null;
+  const courseAnchors=[pe12,pb08].filter((v):v is number=>v!=null&&Number.isFinite(v)&&v>0);
+  const maxFair=input.price*2.5;
+
+  // 防護：折現結果若遠高於現價／課程門檻，改採課程錨點，避免出現「歷史從沒到過」的天價
+  if(!Number.isFinite(fair) || fair<=0 || fair>maxFair){
+    if(courseAnchors.length){
+      fair=courseAnchors.sort((a,b)=>a-b)[Math.floor((courseAnchors.length-1)/2)];
+      low=Math.min(...courseAnchors);
+      high=Math.max(...courseAnchors,fair);
+      out.method='課程門檻估值（PE×12 / PB×0.8；折現結果過高已捨棄）';
+      out.reasons.push(`盈餘折現結果不合理（相對現價超過 2.5 倍或非正數），已改用美股課程攻略門檻。幣別 ${input.currency}。`);
+    }else{
+      out.reasons.push('盈餘折現結果不合理且缺少可用課程門檻，暫停估價。');
+      return out;
+    }
+  }else{
+    // 仍用折現，但高估情境不超過現價 2.5 倍
+    fair=Math.min(fair,maxFair);
+    high=Math.min(high,maxFair);
+    low=Math.min(low,fair);
+  }
+
+  out.low=low;out.fair=fair;out.high=high;
+  out.entry=Math.min(low,fair*0.8);
+  if(pb08!=null) out.entry=Math.min(out.entry,pb08);
+  if(pe12!=null) out.entry=Math.min(out.entry,pe12);
+  out.margin=(out.fair-input.price)/out.fair*100;
   out.status='available';out.eligible=!!input.sector && input.price<=out.entry;
   out.signal=out.eligible?'進入模型買入研究區':input.price<=out.entry?'價格達標，產業待核對':input.price<=out.fair?'低於基準合理價，安全邊際尚不足':'高於模型基準合理價';
   out.formulas=[
@@ -142,7 +175,8 @@ export function calculateEntry(e: PricingEvidence, input: {price:number; currenc
     `ROE = TTM 淨利 ÷ 平均普通股權益 = ${(roe*100).toFixed(2)}%。模型保留比例 = 成長率 ÷ ROE；可分配盈餘 = 預測盈餘 × (1 − 保留比例)，不是實際承諾股息。`,
     '第 1～5 年維持情境成長，第 6～10 年成長率線性收斂至 2%；ROE 同期收斂至 min(目前 ROE,15%)，但不低於折現率。',
     '合理價 = Σ[第 t 年每股可分配盈餘 ÷ (1+r)^t] + [第 11 年每股可分配盈餘 ÷ (r−2%)] ÷ (1+r)^10。折現率為 12%／10%／8% 情境假設，並非已估計的個股資金成本。',
-    '入場上限 = min(保守情境價, 基準合理價 × 80%)。安全邊際 = (基準合理價 − 現價) ÷ 基準合理價。模型不使用現價推導合理價。',
+    '入場上限 = min(保守情境價, 基準合理價 × 80%, 課程 PB0.8／PE12 門檻)。安全邊際 = (基準合理價 − 現價) ÷ 基準合理價。',
+    `幣別防護：財報幣別必須為 ${input.currency}；合理價不得超過現價 2.5 倍。`,
   ];
   out.reasons.push('盈餘再投資模型假設未來獲利可轉為股東可分配資金；未調整一次性損益、未來稀釋及產業循環，應核對情境，不能當成保證成交目標或獲利機率。');
   if(financial)out.reasons.push('金融業使用盈餘與權益；未核對監管資本、呆帳及實際配息能力，仍須個別研究。');
