@@ -504,12 +504,86 @@ export async function fetchExactStock(yahooSymbol: string): Promise<YahooStockSn
 // Yahoo occasionally adds fields before the library schema catches up.
 // Validate the small public contract ourselves; never accept missing prices or foreign markets.
 let usCandidatesCache: { until: number; promise: Promise<unknown> } | undefined;
-export async function fetchDynamicUsCandidates(): Promise<unknown> {
-  if (usCandidatesCache && usCandidatesCache.until > Date.now()) return usCandidatesCache.promise;
-  const promise = yahooFinance.screener({ scrIds: "undervalued_large_caps", count: 25 }, undefined,
-    { validateResult: false, fetchOptions: { signal: AbortSignal.timeout(20000) } });
+
+/** 常見 ADR／非美股本國上市代號特徵（首頁初篩優先排除，改走本土美股） */
+function looksLikeAdrSymbol(symbol: string, name: string): boolean {
+  if (/^[A-Z]{1,4}$/.test(symbol) === false && /[.-]/.test(symbol)) return true;
+  return /\b(S\.A\.|SAADR|ADR|PLC|N\.V\.|Corp\.?\s*ADR)\b/i.test(name);
+}
+
+function isUsExchange(exchange: unknown): boolean {
+  const ex = String(exchange ?? "").toUpperCase();
+  return (
+    ex.includes("NMS") ||
+    ex.includes("NYQ") ||
+    ex.includes("NGM") ||
+    ex.includes("NCM") ||
+    ex.includes("NYSE") ||
+    ex.includes("NASDAQ") ||
+    ex.includes("PCX") ||
+    ex.includes("ASE") ||
+    ex === "NMS" ||
+    ex === "NYQ"
+  );
+}
+
+async function fetchScreenerQuotes(scrId: string, count: number): Promise<unknown[]> {
+  try {
+    const raw = (await yahooFinance.screener(
+      { scrIds: scrId as "undervalued_large_caps", count },
+      undefined,
+      { validateResult: false, fetchOptions: { signal: AbortSignal.timeout(20000) } }
+    )) as { quotes?: unknown[] };
+    return Array.isArray(raw.quotes) ? raw.quotes : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 美股動態初篩：合併多個 Yahoo 篩選器，優先保留 USD + 美股交易所標的，
+ * 降低巴西／英國 ADR 佔滿前 12 名導致估值全被擋下的問題。
+ */
+export async function fetchDynamicUsCandidates(): Promise<{ quotes: unknown[] }> {
+  if (usCandidatesCache && usCandidatesCache.until > Date.now()) {
+    return usCandidatesCache.promise as Promise<{ quotes: unknown[] }>;
+  }
+  const promise = (async () => {
+    const batches = await Promise.all([
+      fetchScreenerQuotes("undervalued_large_caps", 50),
+      fetchScreenerQuotes("undervalued_growth_stocks", 25),
+      fetchScreenerQuotes("growth_technology_stocks", 25),
+      fetchScreenerQuotes("most_actives", 25),
+    ]);
+    const seen = new Set<string>();
+    const preferred: unknown[] = [];
+    const fallback: unknown[] = [];
+
+    for (const row of batches.flat()) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const symbol = typeof r.symbol === "string" ? r.symbol.toUpperCase() : "";
+      if (!symbol || seen.has(symbol)) continue;
+      if (r.quoteType !== "EQUITY" || r.currency !== "USD") continue;
+      if (!(typeof r.regularMarketPrice === "number" && r.regularMarketPrice > 0)) continue;
+      seen.add(symbol);
+      const name = String(r.shortName ?? r.longName ?? "");
+      const usListed = isUsExchange(r.fullExchangeName ?? r.exchange) && !looksLikeAdrSymbol(symbol, name);
+      if (usListed) preferred.push(row);
+      else fallback.push(row);
+    }
+
+    // 本土美股優先，不足再補 ADR（估值端會改走課程門檻／或排除）
+    return { quotes: [...preferred, ...fallback].slice(0, 60) };
+  })();
+
   usCandidatesCache = { until: Date.now() + 300000, promise };
-  try { return await promise; } catch (error) { usCandidatesCache = undefined; throw error; }
+  try {
+    return await promise;
+  } catch (error) {
+    usCandidatesCache = undefined;
+    throw error;
+  }
 }
 
 export async function fetchStatementSeries(symbol: string, type: 'annual' | 'quarterly') {
