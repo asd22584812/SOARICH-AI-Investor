@@ -13,7 +13,8 @@ for (const market of ["TW", "US"]) {
     limit,
     delayMs,
     concurrency,
-    clearExisting: true,
+    // 完整日掃才清空，避免增量過程中資料被整批刪除
+    clearExisting: !limit,
   });
   console.log(JSON.stringify({ market, ...result }));
   if (result.failed > 0) process.exitCode = 1;

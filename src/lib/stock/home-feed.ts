@@ -3,6 +3,12 @@ import type { HomeMarketFeed, HomeStockCard, StockAnalysis } from "@/types/stock
 
 const SECTION_LIMIT = 5;
 const MAX_SECTION_APPEARANCES = 2;
+/**
+ * Extreme MOS usually means bad inputs (EPS/FCF/book) — exclude from rankings.
+ * Cap both upside and downside so broken fair-value outliers don't dominate.
+ */
+const MAX_PLAUSIBLE_MOS = 80;
+const MIN_PLAUSIBLE_MOS = -80;
 
 const TODAY_FOCUS_STRICT = { minRating: 70, minMos: -20 };
 const TODAY_FOCUS_RELAXED = { minRating: 65, minMos: -30 };
@@ -42,10 +48,15 @@ function eligibleAnalyses(analyses: StockAnalysis[]): StockAnalysis[] {
     (analysis) =>
       analysis.totalScore > 0 &&
       analysis.companyClassification !== "insufficient_data" &&
+      analysis.price > 0 &&
       analysis.valuation.fairPrice != null && analysis.valuation.fairPrice > 0 &&
       analysis.valuation.marginOfSafety != null &&
       Number.isFinite(analysis.valuation.marginOfSafety)
   );
+}
+
+function isPlausibleMos(mos: number): boolean {
+  return mos >= MIN_PLAUSIBLE_MOS && mos <= MAX_PLAUSIBLE_MOS;
 }
 
 function canAddSymbol(
@@ -90,7 +101,8 @@ function buildTodayFocusCandidates(
     .filter(
       (analysis) =>
         analysis.totalScore >= minRating &&
-        analysis.valuation.marginOfSafety! >= minMos
+        analysis.valuation.marginOfSafety! >= minMos &&
+        isPlausibleMos(analysis.valuation.marginOfSafety!)
     )
     .map((analysis) => ({
       analysis,
@@ -125,18 +137,42 @@ function pickTodayFocus(
   return pickFromSorted(candidates, appearanceCount);
 }
 
+/** 低估關注：必須現價低於合理價（MOS > 0），再依安全邊際排序 */
+function pickUndervalued(
+  analyses: StockAnalysis[],
+  appearanceCount: Map<string, number>
+): HomeStockCard[] {
+  const undervalued = analyses
+    .filter(
+      (analysis) =>
+        analysis.valuation.marginOfSafety! > 0 &&
+        isPlausibleMos(analysis.valuation.marginOfSafety!) &&
+        isUndervaluedFocusEligible({
+          soarichRating: analysis.totalScore,
+          marginOfSafety: analysis.valuation.marginOfSafety!,
+          valuationScore: analysis.aiScore.valuation,
+          insufficientData: false,
+        })
+    )
+    .sort((a, b) => {
+      const mosDiff =
+        b.valuation.marginOfSafety! - a.valuation.marginOfSafety!;
+      if (Math.abs(mosDiff) > 0.1) return mosDiff;
+      return b.totalScore - a.totalScore;
+    });
+
+  return pickFromSorted(undervalued, appearanceCount);
+}
+
 export function buildHomeMarketFeed(analyses: StockAnalysis[]): HomeMarketFeed {
-  const pool = eligibleAnalyses(analyses);
+  const pool = eligibleAnalyses(analyses).filter((analysis) =>
+    isPlausibleMos(analysis.valuation.marginOfSafety!)
+  );
   const appearanceCount = new Map<string, number>();
 
-  const feed: HomeMarketFeed = {
+  return {
     todayFocus: pickTodayFocus(analyses, appearanceCount),
-    undervalued: pickFromSorted(
-      pool.filter((a) => isUndervaluedFocusEligible({ soarichRating: a.totalScore, marginOfSafety: a.valuation.marginOfSafety!, valuationScore: a.aiScore.valuation, insufficientData: false })).sort(
-        (a, b) => b.valuation.marginOfSafety! - a.valuation.marginOfSafety!
-      ),
-      appearanceCount
-    ),
+    undervalued: pickUndervalued(pool, appearanceCount),
     highQuality: pickFromSorted(
       pool.filter((a) => isHighQualityWatchEligible({ soarichRating: a.totalScore, moatScore: a.moat.score, financialScore: a.aiScore.financials, insufficientData: false })).sort((a, b) => b.totalScore - a.totalScore),
       appearanceCount
@@ -146,6 +182,4 @@ export function buildHomeMarketFeed(analyses: StockAnalysis[]): HomeMarketFeed {
       appearanceCount
     ),
   };
-
-  return feed;
 }

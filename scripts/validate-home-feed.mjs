@@ -148,11 +148,14 @@ for (const [symbol, count] of appearances) {
 }
 console.log("max appearances per symbol <= 2 OK");
 
-console.log("\n=== sort keys ===");
+console.log("\n=== sort keys + undervalued MOS>0 only ===");
 const base = mockAnalysis("BASE");
 const sortPool = [
   mockAnalysis("MOS_HIGH", {
     valuation: { ...base.valuation, marginOfSafety: 40 },
+  }),
+  mockAnalysis("MOS_MID", {
+    valuation: { ...base.valuation, marginOfSafety: 12 },
   }),
   mockAnalysis("MOS_LOW", {
     valuation: { ...base.valuation, marginOfSafety: -5 },
@@ -178,6 +181,14 @@ const sortPool = [
 ];
 const feedSort = buildHomeMarketFeed(sortPool);
 assert.equal(feedSort.undervalued[0]?.symbol, "MOS_HIGH");
+assert.ok(
+  feedSort.undervalued.every((card) => card.undervaluedPercent > 0),
+  "undervalued section must only include MOS > 0"
+);
+assert.ok(
+  !feedSort.undervalued.some((card) => card.symbol === "MOS_LOW"),
+  "negative MOS must not appear in undervalued"
+);
 assert.ok(feedSort.moat.length > 0, "moat section should not be empty");
 
 const moatScores = feedSort.moat.map(

@@ -18,6 +18,11 @@ export function ValuationSection({
       <p className="mb-5 text-xs text-text-secondary">
         模型估值：安全價為合理價 80%，樂觀情境為 125%；並非保證報酬。
       </p>
+      {valuation.valuationModel ? (
+        <p className="mb-3 text-xs text-text-secondary">
+          估值模型：{valuation.valuationModel}
+        </p>
+      ) : null}
       {valuation.valuationConfidence === "low" ? (
         <p className="mb-4 text-xs text-text-secondary">現金流資料不足，估值可信度偏低</p>
       ) : null}

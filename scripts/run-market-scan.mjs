@@ -15,11 +15,12 @@ console.log(`Starting ${market} market scan...`);
 if (limit) console.log(`Limit: ${limit} symbols`);
 
 const started = Date.now();
+const clearExisting = process.argv.includes("--clear");
 const result = await runMarketScan(market, {
   limit,
   concurrency,
   delayMs,
-  clearExisting: true,
+  clearExisting,
 });
 
 const elapsed = ((Date.now() - started) / 1000).toFixed(1);

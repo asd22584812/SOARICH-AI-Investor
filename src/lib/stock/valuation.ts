@@ -352,7 +352,7 @@ export function calculateFairValue(
     dividendBook: dividendBookValue > 0,
   });
 
-  const fairValue =
+  const blendedFairValue =
     dcfValue * weights.dcf +
     peValue * weights.pe +
     pegValue * weights.peg +
@@ -361,7 +361,15 @@ export function calculateFairValue(
     roeQualityValue * weights.roeQuality +
     dividendBookValue * weights.dividendBook;
 
-  const safeFairValue = Number.isFinite(fairValue) && fairValue > 0 ? fairValue : 0;
+  // Invalid blends stay 0 (insufficient data) rather than falling back to price.
+  // Blended fair value can explode for asset-light names if PE/PB inputs are thin,
+  // so clamp relative to market price to keep MOS interpretable.
+  const rawFair =
+    Number.isFinite(blendedFairValue) && blendedFairValue > 0 ? blendedFairValue : 0;
+  const minFair = currentPrice > 0 ? currentPrice * 0.25 : rawFair;
+  const maxFair = currentPrice > 0 ? currentPrice * 4 : rawFair;
+  const safeFairValue =
+    rawFair > 0 ? Math.max(minFair, Math.min(maxFair, rawFair)) : 0;
   const marginOfSafety =
     safeFairValue > 0
       ? ((safeFairValue - currentPrice) / safeFairValue) * 100
@@ -379,7 +387,7 @@ export function calculateFairValue(
     marginOfSafety,
     companyClassification: classification,
     weights,
-    dcfWasClamped: dcfResult.wasClamped,
+    dcfWasClamped: dcfResult.wasClamped || safeFairValue !== rawFair,
   };
 }
 
