@@ -35,11 +35,13 @@ export function parseUsRadar(raw: unknown, now = Date.now(), offset=0): Research
     return [{ symbol, name: String(r.shortName ?? r.longName ?? symbol), market: "US", price, currency: "USD", pe: pe > 0 ? pe : 0, asOf: date,
       reason: "Yahoo 多篩選器動態初篩（大型低估／成長／熱門）；需再核對合理價與公司風險。", sourceUrl: "https://finance.yahoo.com/research-hub/screener/undervalued_large_caps/" }];
   });
+  const batch = 20;
   return {
-    nextCursor: offset + 12 < candidates.length ? offset + 12 : null,
-    candidates: candidates.slice(offset, offset + 12),
-    description: "美股動態研究候選：合併 Yahoo 多個篩選器，優先 USD 美股交易所標的，再以估值／課程門檻核對。",
-    coverage: `本次合併初篩 ${candidates.length + offset > candidates.length ? "見來源池" : candidates.length} 檔以上；每批評估 12 檔。非固定名單。`,
+    nextCursor: offset + batch < candidates.length ? offset + batch : null,
+    candidates: candidates.slice(offset, offset + batch),
+    description:
+      "美股動態研究候選：Yahoo 報價掃描（PE≤12／PB≤0.8／殖利率≥4%）+ 低估／熱門篩選器；僅 USD 美股，再以課程門檻核對合理價。",
+    coverage: `初篩池約 ${candidates.length} 檔（本頁 offset=${offset}）；每批評估 ${batch} 檔。資料來源 Yahoo Finance，非富途。`,
     sourceDate: candidates[0]?.asOf ?? null,
   };
 }
@@ -66,8 +68,8 @@ export async function getEntryRadar(market: 'TW'|'US',offset=0): Promise<Researc
       if(market==='TW'){
         const {classicTaiwan}=await import('./classic');
         value=await classicTaiwan(candidate.symbol,candidate.price,candidate.asOf,value,summary?.assetProfile?.industry??sector);
-      } else if (value.status!=='available' || !value.eligible) {
-        // 美股：盈餘折現常因 ADR 幣別／負 FCF 全滅 → 改用課程門檻（USD 報價欄位）
+      } else {
+        // 美股首頁排行：以課程門檻為主（PE12／PB0.8／股息4%），與教學一致且幣別用 USD 報價
         const {classicUs, quoteMetricsFromSummary}=await import('./classic-us');
         const course=classicUs(
           {price:candidate.price,currency:candidate.currency,asOf:candidate.asOf,name:candidate.name,sector:sector??'Unknown'},

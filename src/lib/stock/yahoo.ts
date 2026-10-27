@@ -510,13 +510,13 @@ function looksLikeAdrSymbol(symbol: string, name: string): boolean {
   if (/[.-]/.test(symbol)) return true;
   // 已知大量出現在 Yahoo「低估大型股」的非美 ADR
   if (
-    /^(BBD|ITUB|BSBR|LYG|UMC|NIO|BABA|JD|PDD|BIDU|TSM|SONY|TM|HMC|SAP|ASML|SHOP|SE|MELI)$/i.test(
+    /^(BBD|ITUB|BSBR|LYG|UMC|NIO|BABA|JD|PDD|BIDU|TSM|SONY|TM|HMC|SAP|ASML|SHOP|SE|MELI|PBR|INTR|VALE|ABEV|EQNR|BP|SHEL|RIO|BHP|UL|DEO|GSK|AZN|NVO|SNY)$/i.test(
       symbol
     )
   ) {
     return true;
   }
-  return /\b(S\.A\.|SAADR|ADR|PLC|N\.V\.|Corp\.?\s*ADR|Brazilian|Brasil|British)\b/i.test(
+  return /\b(S\.A\.|SAADR|ADR|PLC|N\.V\.|Corp\.?\s*ADR|Brazilian|Brasil|British|Canada|Toronto)\b/i.test(
     name
   );
 }
@@ -540,7 +540,7 @@ function isUsExchange(exchange: unknown): boolean {
 async function fetchScreenerQuotes(scrId: string, count: number): Promise<unknown[]> {
   try {
     const raw = (await yahooFinance.screener(
-      { scrIds: scrId as "undervalued_large_caps", count },
+      { scrIds: scrId as "undervalued_large_caps", count, region: "US", lang: "en-US" },
       undefined,
       { validateResult: false, fetchOptions: { signal: AbortSignal.timeout(20000) } }
     )) as { quotes?: unknown[] };
@@ -551,23 +551,81 @@ async function fetchScreenerQuotes(scrId: string, count: number): Promise<unknow
 }
 
 /**
- * 美股動態初篩：合併多個 Yahoo 篩選器，優先保留 USD + 美股交易所標的，
- * 降低巴西／英國 ADR 佔滿前 12 名導致估值全被擋下的問題。
+ * 課程門檻候選：直接對流動性高的美股報價做 PE／PB／殖利率過濾。
+ * （yahoo-finance2 的 screener 自訂 query 會 InvalidOptionsError，不能再用。）
+ */
+const US_COURSE_SCAN_TICKERS = [
+  // 金融／保險
+  "JPM", "BAC", "WFC", "C", "GS", "MS", "USB", "PNC", "TFC", "KEY", "CFG", "MTB",
+  // 能源／原物料
+  "XOM", "CVX", "COP", "OXY", "MPC", "PSX", "VLO", "DVN", "FANG", "EOG",
+  // 電信／公用
+  "VZ", "T", "TMUS", "DUK", "SO", "NEE", "EXC", "AEP",
+  // 醫療／消費防禦
+  "PFE", "MRK", "BMY", "ABBV", "JNJ", "CVS", "WBA", "PG", "KO", "PEP", "MO", "PM",
+  // 科技／工業價值區
+  "INTC", "IBM", "CSCO", "ORCL", "HPQ", "DELL", "MU", "AMAT", "CAT", "DE", "GE", "BA",
+  // 零售／汽車
+  "WMT", "TGT", "HD", "LOW", "F", "GM",
+] as const;
+
+async function fetchCourseGateQuotes(): Promise<unknown[]> {
+  try {
+    const raw = await yahooFinance.quote(
+      [...US_COURSE_SCAN_TICKERS],
+      {},
+      { fetchOptions: { signal: AbortSignal.timeout(25000) } }
+    );
+    const rows = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return rows.filter((row) => {
+      if (!row || typeof row !== "object") return false;
+      return meetsCoursePrefilter(row as Record<string, unknown>);
+    });
+  } catch {
+    return [];
+  }
+}
+
+function meetsCoursePrefilter(r: Record<string, unknown>): boolean {
+  const pe =
+    (typeof r.trailingPE === "number" ? r.trailingPE : null) ??
+    (typeof r.forwardPE === "number" ? r.forwardPE : null);
+  const pb = typeof r.priceToBook === "number" ? r.priceToBook : null;
+  const dyRaw =
+    (typeof r.dividendYield === "number" ? r.dividendYield : null) ??
+    (typeof r.trailingAnnualDividendYield === "number"
+      ? r.trailingAnnualDividendYield
+      : null);
+  const yieldPct = dyRaw == null ? null : dyRaw > 1 ? dyRaw / 100 : dyRaw;
+  return (
+    (pe != null && pe > 0 && pe <= 12) ||
+    (pb != null && pb > 0 && pb <= 0.8) ||
+    (yieldPct != null && yieldPct >= 0.04)
+  );
+}
+
+/**
+ * 美股動態初篩：
+ * 1) 優先課程門檻自訂篩選（PE&lt;12 / PB&lt;0.8 / 殖利率&gt;4%）
+ * 2) 再合併 Yahoo 預設低估篩選
+ * 3) 排除明顯 ADR，只留 USD
  */
 export async function fetchDynamicUsCandidates(): Promise<{ quotes: unknown[] }> {
   if (usCandidatesCache && usCandidatesCache.until > Date.now()) {
     return usCandidatesCache.promise as Promise<{ quotes: unknown[] }>;
   }
   const promise = (async () => {
+    // 預設篩選器可用；自訂 query 會失敗，改用報價掃描補齊課程門檻
     const batches = await Promise.all([
-      fetchScreenerQuotes("undervalued_large_caps", 50),
-      fetchScreenerQuotes("undervalued_growth_stocks", 25),
-      fetchScreenerQuotes("growth_technology_stocks", 25),
-      fetchScreenerQuotes("most_actives", 25),
+      fetchCourseGateQuotes(),
+      fetchScreenerQuotes("undervalued_large_caps", 40),
+      fetchScreenerQuotes("undervalued_growth_stocks", 40),
+      fetchScreenerQuotes("most_actives", 30),
+      fetchScreenerQuotes("day_losers", 25),
     ]);
     const seen = new Set<string>();
-    const preferred: unknown[] = [];
-    const fallback: unknown[] = [];
+    const courseHits: unknown[] = [];
+    const otherUs: unknown[] = [];
 
     for (const row of batches.flat()) {
       if (!row || typeof row !== "object") continue;
@@ -576,15 +634,20 @@ export async function fetchDynamicUsCandidates(): Promise<{ quotes: unknown[] }>
       if (!symbol || seen.has(symbol)) continue;
       if (r.quoteType !== "EQUITY" || r.currency !== "USD") continue;
       if (!(typeof r.regularMarketPrice === "number" && r.regularMarketPrice > 0)) continue;
-      seen.add(symbol);
       const name = String(r.shortName ?? r.longName ?? "");
-      const usListed = isUsExchange(r.fullExchangeName ?? r.exchange) && !looksLikeAdrSymbol(symbol, name);
-      if (usListed) preferred.push(row);
-      else fallback.push(row);
+      if (looksLikeAdrSymbol(symbol, name)) continue;
+      // 只要明確是美股交易所，或來自課程掃描池
+      const exchangeOk = isUsExchange(r.fullExchangeName ?? r.exchange);
+      if (!exchangeOk && !US_COURSE_SCAN_TICKERS.includes(symbol as (typeof US_COURSE_SCAN_TICKERS)[number])) {
+        continue;
+      }
+      seen.add(symbol);
+      if (meetsCoursePrefilter(r)) courseHits.push(row);
+      else otherUs.push(row);
     }
 
-    // 本土美股優先，不足再補 ADR（估值端會改走課程門檻／或排除）
-    return { quotes: [...preferred, ...fallback].slice(0, 60) };
+    // 課程門檻命中的排最前面，首頁前幾批才找得到低估股
+    return { quotes: [...courseHits, ...otherUs].slice(0, 100) };
   })();
 
   usCandidatesCache = { until: Date.now() + 300000, promise };
