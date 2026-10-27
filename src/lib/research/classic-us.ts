@@ -91,6 +91,10 @@ export function classicUs(
     },
   ];
 
+  // 課程精神：任一法達標即可視為「有研究價值」
+  // - 成長／通用：現價 ≤ EPS×12（即 PE≤12）
+  // - 資產股：現價 ≤ 淨值×0.8（便宜）或 ≤ 淨值（接近合理）
+  // - 股息股：現價 ≤ 股息÷4%（即殖利率≥4%）
   const fairCandidates = [pe12, pbFair, divFair].filter(
     (v): v is number => v != null && Number.isFinite(v) && v > 0 && v <= input.price * 2.5
   );
@@ -105,29 +109,31 @@ export function classicUs(
     return out;
   }
 
-  fairCandidates.sort((a, b) => a - b);
-  entryCandidates.sort((a, b) => a - b);
-  const fair =
-    fairCandidates[
-      Math.floor((fairCandidates.length - 1) / 2)
-    ];
+  // 合理價取「可用方法中最高者」：只要有一法顯示低估，排行榜就看得到
+  const fair = Math.max(...fairCandidates);
   const entry = entryCandidates.length
-    ? Math.min(
-        entryCandidates[Math.floor((entryCandidates.length - 1) / 2)],
-        fair * 0.85
-      )
+    ? Math.min(Math.min(...entryCandidates), fair * 0.85)
     : fair * 0.85;
+
+  const hitPe = pe12 != null && input.price <= pe12;
+  const hitPb = pb08 != null && input.price <= pb08;
+  const hitDiv = divFair != null && input.price <= divFair;
+  const methodHits = [
+    hitPe ? "PE≤12" : null,
+    hitPb ? "PB≤0.8" : null,
+    hitDiv ? "殖利率≥4%" : null,
+  ].filter(Boolean);
 
   out.status = "available";
   out.fair = fair;
   out.entry = entry;
   out.low = entry;
-  out.high = Math.max(...fairCandidates);
+  out.high = fair;
   out.margin = ((fair - input.price) / fair) * 100;
-  out.eligible = !!input.sector && input.price <= entry;
+  out.eligible = !!input.sector && (hitPe || hitPb || hitDiv || input.price <= entry);
   out.signal =
-    input.price <= entry
-      ? "價格符合課程買入研究區"
+    hitPe || hitPb || hitDiv
+      ? `符合課程低估條件（${methodHits.join("、")}）`
       : input.price <= fair
         ? "接近課程合理價"
         : "高於課程合理價，先觀望";
@@ -139,11 +145,11 @@ export function classicUs(
     dividend != null
       ? `股息合理價 = 股息 ${dividend.toFixed(2)} ÷ 4% = US$${divFair?.toFixed(2)}`
       : "股息法不可用",
-    "綜合合理價取可用方法中位數；保守買點取較低門檻與合理價×85% 的較小者。",
+    "綜合合理價取可用方法最高值（任一法達標即可列入研究）；保守買點取較低門檻。",
     "幣別：全部以 USD 報價欄位計算，不把外幣財報直接當美元。",
   ];
   out.reasons.push(
-    "此為美股課程門檻備援估值（當盈餘折現因負 FCF／幣別／產業不適用時）。不是保證獲利。"
+    "此為美股課程門檻估值（PE12／PB0.8／殖利率4%）。不是保證獲利。"
   );
   if (/real estate|reit/i.test(input.sector ?? "")) {
     out.reasons.push("REIT 以淨值／股息參考為主，未使用 FFO。");

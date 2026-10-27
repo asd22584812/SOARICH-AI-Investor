@@ -80,20 +80,25 @@ export async function getEntryRadar(market: 'TW'|'US',offset=0): Promise<Researc
       if(value.status!=='available' || value.fair==null || value.entry==null){
         unavailable++;excluded.push({symbol:candidate.symbol,reason:value.reasons.join(' ')||value.signal});return null;
       }
-      // 排行榜：現價 ≤ 合理價即可列入（低估）；保守買點另列供研究
-      if(!(candidate.price<=value.fair) || !(value.margin!=null && value.margin>=0)){
-        aboveEntry++;excluded.push({symbol:candidate.symbol,reason:value.signal||'高於合理價'});return null;
+      // 排行榜：現價 ≤ 合理價，或課程訊號已標示符合低估條件
+      const undervalued =
+        (value.margin != null && value.margin >= 0 && candidate.price <= value.fair) ||
+        (market === "US" && value.eligible);
+      if (!undervalued) {
+        aboveEntry++;
+        excluded.push({ symbol: candidate.symbol, reason: value.signal || "高於合理價" });
+        return null;
       }
-      const deep=value.eligible && candidate.price<=value.entry;
+      const deep = value.eligible && candidate.price <= value.entry;
       return {
         ...candidate,
-        entry:value.entry,
-        fair:value.fair,
-        margin:value.margin,
-        pe:candidate.pe||0,
+        entry: value.entry,
+        fair: value.fair,
+        margin: value.margin ?? ((value.fair - candidate.price) / value.fair) * 100,
+        pe: candidate.pe || 0,
         reason: deep
           ? `現價低於保守買點。${value.method}。需再核對個別公司風險。`
-          : `現價低於合理價（尚未到保守買點）。${value.method}。需再核對個別公司風險。`,
+          : `${value.signal}。${value.method}。需再核對個別公司風險。`,
       };
     }catch{unavailable++;excluded.push({symbol:candidate.symbol,reason:"財報來源讀取失敗，可稍後重新核對。"});return null;}
   }));
