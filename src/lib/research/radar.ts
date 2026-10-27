@@ -75,11 +75,26 @@ export async function getEntryRadar(market: 'TW'|'US',offset=0): Promise<Researc
         );
         if(course.status==='available') value=course;
       }
-      if(value.status!=='available'){unavailable++;excluded.push({symbol:candidate.symbol,reason:value.reasons.join(' ')});return null;}
-      if(!value.eligible){aboveEntry++;excluded.push({symbol:candidate.symbol,reason:value.signal});return null;}
-      return {...candidate,entry:value.entry!,fair:value.fair!,margin:value.margin!,pe:candidate.pe||0,reason:`現價低於所列估值與保守買點。${value.method}。需再核對個別公司風險。`};
+      if(value.status!=='available' || value.fair==null || value.entry==null){
+        unavailable++;excluded.push({symbol:candidate.symbol,reason:value.reasons.join(' ')||value.signal});return null;
+      }
+      // 排行榜：現價 ≤ 合理價即可列入（低估）；保守買點另列供研究
+      if(!(candidate.price<=value.fair) || !(value.margin!=null && value.margin>=0)){
+        aboveEntry++;excluded.push({symbol:candidate.symbol,reason:value.signal||'高於合理價'});return null;
+      }
+      const deep=value.eligible && candidate.price<=value.entry;
+      return {
+        ...candidate,
+        entry:value.entry,
+        fair:value.fair,
+        margin:value.margin,
+        pe:candidate.pe||0,
+        reason: deep
+          ? `現價低於保守買點。${value.method}。需再核對個別公司風險。`
+          : `現價低於合理價（尚未到保守買點）。${value.method}。需再核對個別公司風險。`,
+      };
     }catch{unavailable++;excluded.push({symbol:candidate.symbol,reason:"財報來源讀取失敗，可稍後重新核對。"});return null;}
   }));
   const candidates=results.filter((x):x is NonNullable<typeof x>=>x!=null).sort((a,b)=>b.margin-a.margin);
-  return {...radar,candidates,excluded,description:'價格篩選候選：台股採 Yahoo VIP 歷史區間；美股採盈餘折現，失敗則改用課程 PE12／PB0.8／股息門檻。通過價格條件不等於完成公司風險審查。',coverage:radar.coverage+` 本批從初篩第 ${offset+1} 檔起評估 ${radar.candidates.length} 檔；符合 ${candidates.length} 檔，未達價格 ${aboveEntry} 檔，資料不足 ${unavailable} 檔。`};
+  return {...radar,candidates,excluded,description:'低估排行：台股 Yahoo VIP；美股盈餘折現，失敗則課程 PE12／PB0.8／股息。列入條件為現價≤合理價；保守買點另供研究。不等於保證獲利。',coverage:radar.coverage+` 本批評估 ${radar.candidates.length} 檔；低估 ${candidates.length} 檔，高於合理價 ${aboveEntry} 檔，資料不足 ${unavailable} 檔。`};
 }

@@ -505,10 +505,20 @@ export async function fetchExactStock(yahooSymbol: string): Promise<YahooStockSn
 // Validate the small public contract ourselves; never accept missing prices or foreign markets.
 let usCandidatesCache: { until: number; promise: Promise<unknown> } | undefined;
 
-/** 常見 ADR／非美股本國上市代號特徵（首頁初篩優先排除，改走本土美股） */
+/** 常見 ADR／非美股本國公司（首頁初篩排除，避免外幣財報干擾 USD 估價） */
 function looksLikeAdrSymbol(symbol: string, name: string): boolean {
-  if (/^[A-Z]{1,4}$/.test(symbol) === false && /[.-]/.test(symbol)) return true;
-  return /\b(S\.A\.|SAADR|ADR|PLC|N\.V\.|Corp\.?\s*ADR)\b/i.test(name);
+  if (/[.-]/.test(symbol)) return true;
+  // 已知大量出現在 Yahoo「低估大型股」的非美 ADR
+  if (
+    /^(BBD|ITUB|BSBR|LYG|UMC|NIO|BABA|JD|PDD|BIDU|TSM|SONY|TM|HMC|SAP|ASML|SHOP|SE|MELI)$/i.test(
+      symbol
+    )
+  ) {
+    return true;
+  }
+  return /\b(S\.A\.|SAADR|ADR|PLC|N\.V\.|Corp\.?\s*ADR|Brazilian|Brasil|British)\b/i.test(
+    name
+  );
 }
 
 function isUsExchange(exchange: unknown): boolean {
